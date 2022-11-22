@@ -2,26 +2,26 @@
     "openapi": "3.0.3",
     "servers": [
         {
-            "url": "https://iap-api-dev.local.rakutenmarketing.com",
-            "description": "Development server"
+            "url": "https://dev.server.com",
+            "description": "Development Server"
         },
         {
-            "url": "https://iap-api-qa.local.rakutenmarketing.com",
-            "description": "Staging server"
+            "url": "https://qa.server.com",
+            "description": "QA Server"
         },
         {
             "url": "https://iap-api-pre-prod.local.rakutenmarketing.com/",
-            "description": "Staging (pre-prod_ server"
+            "description": "Staging (pre-prod) Server"
         },
         {
-            "url": "https://iap-api.rakutenmarketing.com/",
-            "description": "Production server"
+            "url": "https://prod.server.com/",
+            "description": "Production Server"
         }
     ],
     "info": {
-        "description": "IAP API Endpoints for Affiliate, Search, Display and Social Reporting.",
+        "description": "API Endpoints",
         "version": "1.0.0",
-        "title": "IAP API",
+        "title": "API",
         "license": {
             "name": "",
             "url": ""
@@ -976,7 +976,6 @@
                     },
                     "status": {
                         "type": "object",
-                        
                         "description": "Order Status",
                         "enum": [
                             "placed",

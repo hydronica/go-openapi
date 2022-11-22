@@ -1,4 +1,6 @@
-package spec
+package openapi
+
+// This file represents the structs to define the openapi specification 3.0.3
 
 type OpenAPI struct {
 	Version string   `json:"openapi"`           // the  semantic version number of the OpenAPI Specification version
@@ -52,40 +54,37 @@ type RequestBody struct {
 }
 
 type Schema struct {
-	AddProperties *Schema    `json:"additionalProperties"`
+	AddProperties *Schema    `json:"additionalProperties,omitempty"`
 	Title         string     `json:"title,omitempty"`
-	Desc          string     `json:"description,omitempty"`
-	Type          string     `json:"type,omitempty"`
-	Items         *Schema    `json:"items"`
-	Properties    Properties `json:"properties,omitempty"`
+	Desc          string     `json:"description,omitempty"` // CommonMark syntax MAY be used for rich text representation.
+	Type          string     `json:"type,omitempty"`        // Value MUST be a string. Multiple types via an array are not supported.
+	Format        string     `json:"format,omitempty"`      // See Data Type Formats for further details. While relying on JSON Schema's defined formats, the OAS offers a few additional predefined formats.
+	Items         *Schema    `json:"items,omitempty"`       // Value MUST be an object and not an array. Inline or referenced schema MUST be of a Schema Object and not a standard JSON Schema. items MUST be present if the type is array.
+	Properties    Properties `json:"properties,omitempty"`  // Property definitions MUST be a Schema Object and not a standard JSON Schema (inline or referenced).
+	Example       any        `json:"example,omitempty"`     // A free-form property to include an example of an instance for this schema. To represent examples that cannot be naturally represented in JSON or YAML, a string value can be used to contain the example with escaping where necessary.
 }
 
-type Properties map[string]Property
+type Properties map[string]Schema
 
 type Ref struct {
 	Ref string `json:"$ref"`
 }
 
 type Param struct {
-	Name string `json:"name,omitempty"`        // REQUIRED. The name of the parameter. Parameter names are case sensitive.
-	Desc string `json:"description,omitempty"` // A brief description of the parameter. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
-	In   string `json:"in"`                    // REQUIRED. The location of the parameter. Possible values are "query", "header", "path" or "cookie".
-}
-
-type Property struct {
-	Type       string `json:"type"`
-	Format     string `json:"format"`
-	Desc       string `json:"description"`
-	Properties `json:"properties"`
-	Items      *Schema `json:"items"`
+	Name     string  `json:"name,omitempty"`        // REQUIRED. The name of the parameter. Parameter names are case sensitive.
+	Desc     string  `json:"description,omitempty"` // A brief description of the parameter. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
+	Style    string  `json:"style,omitempty"`       // Describes how the parameter value will be serialized depending on the type of the parameter value. Default values (based on value of in): for query - form; for path - simple; for header - simple; for cookie - form.
+	In       string  `json:"in"`                    // REQUIRED. The location of the parameter. Possible values are "query", "header", "path" or "cookie".
+	Schema   *Schema `json:"schema,omitempty"`      // The schema defining the type used for the parameter.
+	Required bool    `json:"required"`              // Determines whether this parameter is mandatory. If the parameter location is "path", this property is REQUIRED and its value MUST be true. Otherwise, the property MAY be included and its default value is false
 }
 
 type Info struct {
 	Title   string   `json:"title"`                   // REQUIRED. The title of the API.
 	Desc    string   `json:"description"`             // A short description of the API. CommonMark syntax MAY be used for rich text representation.
 	Terms   string   `json:"termsOfService"`          // A URL to the Terms of Service for the API. MUST be in the format of a URL.
-	Contact *Contact `json:"contact"`                 // The contact information for the exposed API.
-	License *License `json:"license"`                 // The license information for the exposed API.
+	Contact *Contact `json:"contact,omitempty"`       // The contact information for the exposed API.
+	License *License `json:"license,omitempty"`       // The license information for the exposed API.
 	Version string   `json:"version" required:"true"` // REQUIRED. The version of the OpenAPI document (which is distinct from the OpenAPI Specification version or the API implementation version).
 }
 
@@ -100,9 +99,9 @@ type License struct {
 }
 
 type Server struct {
-	URL  string               `json:"url"`         // REQUIRED. A URL to the target host. This URL supports Server Variables and MAY be relative, to indicate that the host location is relative to the location where the OpenAPI document is being served. Variable substitutions will be made when a variable is named in {brackets}.
-	Desc string               `json:"description"` // An optional string describing the host designated by the URL. CommonMark syntax MAY be used for rich text representation.
-	Vars map[string]ServerVar `json:"variables"`   // A map between a variable name and its value. The value is used for substitution in the server's URL template.
+	URL  string               `json:"url"`                 // REQUIRED. A URL to the target host. This URL supports Server Variables and MAY be relative, to indicate that the host location is relative to the location where the OpenAPI document is being served. Variable substitutions will be made when a variable is named in {brackets}.
+	Desc string               `json:"description"`         // An optional string describing the host designated by the URL. CommonMark syntax MAY be used for rich text representation.
+	Vars map[string]ServerVar `json:"variables,omitempty"` // A map between a variable name and its value. The value is used for substitution in the server's URL template.
 }
 
 type ServerVar struct {
