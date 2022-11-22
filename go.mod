@@ -1,4 +1,4 @@
-module github.com/hydronica/openapi
+module github.com/hydronica/go-openapi
 
 go 1.19
 
