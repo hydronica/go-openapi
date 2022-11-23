@@ -189,6 +189,7 @@ func (o *OpenAPI) AddTag(tag, description string) {
 }
 
 // AddRoute will add a new route to the paths object for the openapi spec
+// A unique route is need to add params, responses, and request objects
 func (o *OpenAPI) AddRoute(path, method, tag, desc, summary string) (ur UniqueRoute, err error) {
 	if tag == "" {
 		tag = Default
@@ -297,20 +298,34 @@ func (o *OpenAPI) AddParam(ur UniqueRoute, rp RouteParam) error {
 	return nil
 }
 
+func (o *OpenAPI) PathMethod(path string, method Method) (om OperationMap, op Operation, err error) {
+	om, found := o.Paths[path]
+	if !found {
+		return om, op, fmt.Errorf("could not find path to add param %v", path)
+	}
+	op, found = om[method]
+	if !found {
+		return om, op, fmt.Errorf("could not find method to add param %v", method)
+	}
+	return om, op, nil
+}
+
+// AddRequest will add
+func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
+
+	return nil
+}
+
 // AddResp adds response information to the api responses map
-// this is used for a request body, response body
+// this is used to add a response body
 func (o *OpenAPI) AddResp(ur UniqueRoute, bo BodyObject) error {
 
-	p, found := o.Paths[ur.Path]
-	if !found {
-		return fmt.Errorf("could not find path to add param %v", ur)
+	p, m, err := o.PathMethod(ur.Path, ur.Method)
+	if err != nil {
+		return err
 	}
-	m, found := p[ur.Method]
-	if !found {
-		return fmt.Errorf("could not find method to add param %v", ur)
-	}
+
 	var rSchema Schema
-	var err error
 	if bo.Example != nil {
 		rSchema, err = BuildSchema(bo.Title, bo.Desc, true, bo.Example)
 		if err != nil {
@@ -335,7 +350,8 @@ func (o *OpenAPI) AddResp(ur UniqueRoute, bo BodyObject) error {
 	return nil
 }
 
-// AddReq adds request information to the api requestBody object
+// BuildSchema will create a schema object based on a given example body interface
+// if the example bool is true the body will be marshaled and added to the schema as an example
 func BuildSchema(title, desc string, example bool, body any) (s Schema, err error) {
 
 	if body == nil {
@@ -349,6 +365,11 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 	typ := reflect.TypeOf(body)
 	value := reflect.ValueOf(body)
 	kind := typ.Kind()
+
+	// skip any objects that are not exported, or cannot be interfaced
+	if !value.CanInterface() {
+		return s, nil
+	}
 
 	if kind == reflect.Pointer {
 		value = value.Elem()
