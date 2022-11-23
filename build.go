@@ -389,6 +389,10 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 		for i := 0; i < numFields; i++ {
 			format := ""
 			field := typ.Field(i)
+			// skip any fields that are not exported
+			if !value.Field(i).CanInterface() {
+				continue
+			}
 			val := value.Field(i).Interface()
 			varName := field.Name
 			jsonTag := field.Tag.Get("json")
