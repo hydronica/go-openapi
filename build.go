@@ -333,13 +333,15 @@ func (o *OpenAPI) AddResp(ur UniqueRoute, bo BodyObject) error {
 		}
 	}
 
-	m.Responses = Responses{
-		bo.HttpStatus: Response{
-			Desc: bo.Desc,
-			Content: map[string]Media{
-				string(bo.MIMEType): {
-					Schema: rSchema,
-				},
+	if m.Responses == nil {
+		m.Responses = make(Responses)
+	}
+
+	m.Responses[bo.HttpStatus] = Response{
+		Desc: bo.Desc,
+		Content: map[string]Media{
+			string(bo.MIMEType): {
+				Schema: rSchema,
 			},
 		},
 	}
