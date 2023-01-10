@@ -383,6 +383,8 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 	s.Desc = desc
 
 	switch kind {
+	case reflect.Bool:
+		s.Type = Boolean.String()
 	case reflect.String:
 		s.Type = String.String()
 	case reflect.Struct:
@@ -488,6 +490,8 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 
 func isSimpleType(t reflect.Kind) (simple bool, kind, format string) {
 	switch t {
+	case reflect.Bool:
+		return true, Boolean.String(), ""
 	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64:
 		return true, Integer.String(), Int64.String()
 	case reflect.Int32, reflect.Uint32:
