@@ -237,21 +237,29 @@ func (o *OpenAPI) AddRoute(path, method, tag, desc, summary string) (ur UniqueRo
 type BodyObject struct {
 	MIMEType   MIMEType // the mimetype for the object
 	HttpStatus Code     // Any HTTP status code, '200', '201', '400' the value of 'default' can be used to cover all responses not defined
-	Array      bool     // is the reference to an array
 	Example    any      // the response object example used to determine the type and name of each field returned
 	Desc       string   // description of the body
 	Title      string   // object title
 }
 
-// NewBody is the data for mapping a request / response object to a specific route
+// NewRespBody is a helper function to create a response body object
 // example is a go object to represent the body
-func NewBody(mtype MIMEType, status Code, desc string, array bool, example any) BodyObject {
+func NewRespBody(mtype MIMEType, status Code, desc string, example any) BodyObject {
 	return BodyObject{
 		MIMEType:   mtype,
 		HttpStatus: status,
-		Array:      array,
 		Example:    example,
 		Desc:       desc,
+	}
+}
+
+// NewReqBody is a helper function to create a request body object
+// example is a go object to represent the body
+func NewReqBody(mtype MIMEType, desc string, example any) BodyObject {
+	return BodyObject{
+		MIMEType: mtype,
+		Example:  example,
+		Desc:     desc,
 	}
 }
 
