@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
 )
@@ -389,7 +390,6 @@ func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {
 // BuildSchema will create a schema object based on a given example body interface
 // if the example bool is true the body will be marshaled and added to the schema as an example
 func BuildSchema(title, desc string, example bool, body any) (s Schema, err error) {
-
 	if body == nil {
 		return
 	}
@@ -398,8 +398,8 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 		s.Example = body
 	}
 
-	typ := reflect.TypeOf(body)
 	value := reflect.ValueOf(body)
+	typ := reflect.TypeOf(body)
 	kind := typ.Kind()
 
 	// skip any objects that are not exported, or cannot be interfaced
@@ -422,17 +422,18 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 	case reflect.String:
 		s.Type = String.String()
 	case reflect.Struct:
-		//v = reflect.ValueOf(&bo.Body).Elem()
 		numFields := typ.NumField()
 		for i := 0; i < numFields; i++ {
-			format := ""
 			field := typ.Field(i)
 			// skip any fields that are not exported
 			if !value.Field(i).CanInterface() {
 				continue
 			}
+			// val is the interface value of the struct field
 			val := value.Field(i).Interface()
+			// the name of the struct field
 			varName := field.Name
+			// the json tag string value
 			jsonTag := field.Tag.Get("json")
 			fieldType := typ.Field(i).Type.Kind()
 
@@ -449,7 +450,7 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 			simple, n, f := isSimpleType(fieldType)
 			if simple {
 				prop.Type = n
-				format = f
+				prop.Format = f
 			}
 
 			prop.Desc = field.Tag.Get("description")
@@ -458,12 +459,23 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 			}
 
 			if fieldType == reflect.Struct {
-				prop, err = BuildSchema("", "", false, val)
-				if err != nil {
-					return *s.Items, fmt.Errorf("error building struct field schema %w", err)
+				// handle time.Time types as strings with a format if given
+				t := reflect.TypeOf(val)
+				name := t.String()
+				switch name {
+				case "time.Time":
+					prop.Type = String.String()
+					prop.Format = time.RFC3339
+				case "openapi.Time":
+					prop.Type = String.String()
+					prop.Format = val.(Time).Format
+				default:
+					prop, err = BuildSchema("", "", false, val)
+					if err != nil {
+						return *s.Items, fmt.Errorf("error building struct field schema %w", err)
+					}
+					prop.Type = Object.String()
 				}
-				prop.Type = Object.String()
-
 			}
 
 			if fieldType == reflect.Slice {
@@ -486,13 +498,9 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 						Format: format,
 					}
 				}
-
 			}
 
-			prop.Format = format
-
 			s.Properties[varName] = prop
-
 		}
 	case reflect.Array:
 		s.Type = Array.String()
