@@ -131,7 +131,6 @@ func (f Format) String() string {
 	return ""
 }
 
-type MIMEType string
 type Reference string
 
 // common media types
@@ -237,7 +236,7 @@ func (o *OpenAPI) AddRoute(path, method, tag, desc, summary string) (ur UniqueRo
 
 type BodyObject struct {
 	MIMEType   MIMEType // the mimetype for the object
-	HttpStatus string   // Any HTTP status code, '200', '201', '400' the value of 'default' can be used to cover all responses not defined
+	HttpStatus Code     // Any HTTP status code, '200', '201', '400' the value of 'default' can be used to cover all responses not defined
 	Array      bool     // is the reference to an array
 	Example    any      // the response object example used to determine the type and name of each field returned
 	Desc       string   // description of the body
@@ -245,12 +244,13 @@ type BodyObject struct {
 }
 
 // NewBody is the data for mapping a request / response object to a specific route
-func NewBody(mtype MIMEType, status, desc string, array bool, body any) BodyObject {
+// example is a go object to represent the body
+func NewBody(mtype MIMEType, status Code, desc string, array bool, example any) BodyObject {
 	return BodyObject{
 		MIMEType:   mtype,
 		HttpStatus: status,
 		Array:      array,
-		Example:    body,
+		Example:    example,
 		Desc:       desc,
 	}
 }
@@ -298,6 +298,8 @@ func (o *OpenAPI) AddParam(ur UniqueRoute, rp RouteParam) error {
 	return nil
 }
 
+// PathMethod is a helper method to pull the operation map out of the openapi paths map
+// then it pulls the operation struct out of the operation map for a fast reference to the operation struct
 func (o *OpenAPI) PathMethod(path string, method Method) (om OperationMap, op Operation, err error) {
 	om, found := o.Paths[path]
 	if !found {
@@ -310,16 +312,9 @@ func (o *OpenAPI) PathMethod(path string, method Method) (om OperationMap, op Op
 	return om, op, nil
 }
 
-// AddRequest will add
+// AddRequest will add a request object for the unique route in the openapi receiver
+// adds an example and schema to the request body
 func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
-
-	return nil
-}
-
-// AddResp adds response information to the api responses map
-// this is used to add a response body
-func (o *OpenAPI) AddResp(ur UniqueRoute, bo BodyObject) error {
-
 	p, m, err := o.PathMethod(ur.Path, ur.Method)
 	if err != nil {
 		return err
@@ -333,14 +328,45 @@ func (o *OpenAPI) AddResp(ur UniqueRoute, bo BodyObject) error {
 		}
 	}
 
+	m.RequestBody = &RequestBody{
+		Desc: bo.Desc,
+		Content: Content{
+			bo.MIMEType: {
+				Schema: rSchema,
+			},
+		},
+	}
+
+	p[ur.Method] = m
+	o.Paths[ur.Path] = p
+
+	return nil
+}
+
+// AddResponse adds response information to the api responses map which is part of the paths map
+// adds an example and schema to the response body
+func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {
+	p, m, err := o.PathMethod(ur.Path, ur.Method)
+	if err != nil {
+		return err
+	}
+
+	var rSchema Schema
+	if bo.Example != nil {
+		rSchema, err = BuildSchema(bo.Title, bo.Desc, true, bo.Example)
+		if err != nil {
+			return fmt.Errorf("addresp: (%s) (%s) %w", ur.Method, ur.Path, err)
+		}
+	}
+
 	if m.Responses == nil {
 		m.Responses = make(Responses)
 	}
 
 	m.Responses[bo.HttpStatus] = Response{
 		Desc: bo.Desc,
-		Content: map[string]Media{
-			string(bo.MIMEType): {
+		Content: Content{
+			bo.MIMEType: {
 				Schema: rSchema,
 			},
 		},

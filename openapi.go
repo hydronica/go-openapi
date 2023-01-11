@@ -1,7 +1,6 @@
 package openapi
 
-// This file represents the structs to define the openapi specification 3.0.3
-
+// OpenAPI represents the definition of the openapi specification 3.0.3
 type OpenAPI struct {
 	Version string   `json:"openapi"`           // the  semantic version number of the OpenAPI Specification version
 	Tags    []Tag    `json:"tags,omitempty"`    // A list of tags used by the specification with additional metadata
@@ -15,6 +14,7 @@ type OpenAPI struct {
 	Routes map[UniqueRoute]Route `json:"-"`
 }
 
+// Operation describes a single API operation on a path.
 type Operation struct {
 	Tags         []string      `json:"tags,omitempty"`
 	Summary      string        `json:"summary,omitempty"`
@@ -26,31 +26,35 @@ type Operation struct {
 	Responses    Responses     `json:"responses,omitempty"`   // key 200,400 REQUIRED. The list of possible responses as they are returned from executing this operation.
 }
 
+// Paths holds the relative paths to the individual endpoints and their operations.
 type Paths map[string]OperationMap
+
+// OperationMap describes the operations available on a single path.
 type OperationMap map[Method]Operation // map of methods to a openAPI Operation object
-type Responses map[string]Response
+
+// Any HTTP status code, '200', '201', '400' the value of 'default' can be used to cover all responses not defined
+type Code string
+type MIMEType string
+type Content map[MIMEType]Media
+
+// Responses for the expected responses of an operation, maps a HTTP response code to the expected response.
+type Responses map[Code]Response
+
+// Response describes a single response from an API Operation
 type Response struct {
-	Desc    string           `json:"description,omitempty"`
-	Content map[string]Media `json:"content,omitempty"`
+	Desc    string  `json:"description,omitempty"`
+	Content Content `json:"content,omitempty"`
 }
 
 type Media struct {
 	Schema Schema `json:"schema"`
 }
 
-// reusable reference objects
-type Components struct {
-	Schemas       Schemas                `json:"schema,omitempty"`
-	RequestBodies map[string]RequestBody `json:"requestBodies,omitempty"`
-	Params        map[string]Param       `json:"params,omitempty"`
-}
-
-type Schemas map[string]Schema
-
+// RequestBody describes a single request body.
 type RequestBody struct {
-	Desc     string             `json:"description,omitempty"`
-	Content  map[MIMEType]Media `json:"content,omitempty"`
-	Required *bool              `json:"required,omitempty"`
+	Desc     string  `json:"description,omitempty"`
+	Content  Content `json:"content,omitempty"`
+	Required *bool   `json:"required,omitempty"`
 }
 
 type Schema struct {
