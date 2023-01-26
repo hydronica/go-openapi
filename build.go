@@ -76,7 +76,6 @@ const (
 	Boolean
 	Object
 	Array
-	Map
 )
 
 const (
@@ -105,8 +104,6 @@ func (t Type) String() string {
 		return "object"
 	case Array:
 		return "array"
-	case Map:
-		return "map"
 	}
 	return ""
 }
