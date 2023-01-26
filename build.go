@@ -76,6 +76,7 @@ const (
 	Boolean
 	Object
 	Array
+	Map
 )
 
 const (
@@ -104,6 +105,8 @@ func (t Type) String() string {
 		return "object"
 	case Array:
 		return "array"
+	case Map:
+		return "map"
 	}
 	return ""
 }
@@ -146,6 +149,7 @@ const (
 	Form    MIMEType = "multipart/form-data"
 )
 
+// Route is a simplified definition for managing routes in code
 type Route struct {
 	Tag       string
 	Desc      string
@@ -157,6 +161,7 @@ type Route struct {
 	Requests  map[string]RouteReq   // key reference for requests
 }
 
+// RouteResp is a simplified definition for a Response to a given method
 type RouteResp struct {
 	Code    string // response code (as a string) "200","400","302"
 	Content MIMEType
@@ -417,6 +422,28 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 	s.Desc = desc
 
 	switch kind {
+	case reflect.Map:
+		s.Type = Object.String()
+		s.AddProperties = &Schema{}
+		// for now, only getting the type for the first map value
+		// if the type is an interface it will only represent the first value of that interface
+		key := value.MapKeys()[0]
+		val := value.MapIndex(key)
+
+		simple, k, f := isSimpleType(val.Kind())
+		if simple {
+			s.AddProperties = &Schema{
+				Type:   k,
+				Format: f,
+			}
+		} else {
+			schema, err := BuildSchema("", "", false, val.Interface())
+			if err != nil {
+				return *s.Items, fmt.Errorf("error building map dictionary schema %w", err)
+			}
+			schema.Type = Object.String()
+			s.AddProperties = &schema
+		}
 	case reflect.Bool:
 		s.Type = Boolean.String()
 	case reflect.String:
@@ -447,9 +474,9 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 			}
 			prop := s.Properties[varName]
 
-			simple, n, f := isSimpleType(fieldType)
+			simple, k, f := isSimpleType(fieldType)
 			if simple {
-				prop.Type = n
+				prop.Type = k
 				prop.Format = f
 			}
 
@@ -457,7 +484,9 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 			if jsonTag != "" {
 				varName = jsonTag
 			}
-
+			if fieldType == reflect.Map {
+				prop, err = BuildSchema("", "", false, val)
+			}
 			if fieldType == reflect.Struct {
 				// handle time.Time types as strings with a format if given
 				t := reflect.TypeOf(val)

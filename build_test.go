@@ -11,6 +11,11 @@ import (
 
 func TestBuildSchema(t *testing.T) {
 
+	type Simple struct {
+		F1 int    `json:"field_one"`
+		F2 string `json:"field_two"`
+	}
+
 	type TestA struct {
 		F1 string   `json:"field_one"`
 		F2 []string `json:"field_two"`
@@ -57,6 +62,10 @@ func TestBuildSchema(t *testing.T) {
 		print bool // print out the json value
 	}
 
+	type MapTest struct {
+		F1 map[string]Simple `json:"map_field"`
+	}
+
 	fn := func(i input) (string, error) {
 		s, err := BuildSchema("test title", "test description", true, i.i)
 		b, _ := json.Marshal(s)
@@ -69,6 +78,24 @@ func TestBuildSchema(t *testing.T) {
 
 	var z *TestF = nil // a nil typed pointer to test
 	cases := trial.Cases[input, string]{
+		"map test simple": {
+			Input: input{
+				i: map[string]string{
+					"key": "value",
+				},
+				print: false,
+			},
+			Expected: `{"additionalProperties":{"type":"string"},"description":"test description","example":{"key":"value"},"title":"test title","type":"object"}`,
+		},
+		"map test object": {
+			Input: input{
+				i: map[string]Simple{
+					"keyvalue": {F1: 123, F2: "string value"},
+				},
+				print: true,
+			},
+			Expected: `{"additionalProperties":{"properties":{"field_one":{"format":"int64","type":"integer"},"field_two":{"type":"string"}},"type":"object"},"description":"test description","example":{"keyvalue":{"field_one":123,"field_two":"string value"}},"title":"test title","type":"object"}`,
+		},
 		"nil typed pointer test": {
 			Input: input{
 				i: TestP{
