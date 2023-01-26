@@ -11,7 +11,7 @@ import (
 
 func TestBuildSchema(t *testing.T) {
 
-	type Simple struct {
+	type PrimitiveTypes struct {
 		F1 int    `json:"field_one"`
 		F2 string `json:"field_two"`
 	}
@@ -62,10 +62,6 @@ func TestBuildSchema(t *testing.T) {
 		print bool // print out the json value
 	}
 
-	type MapTest struct {
-		F1 map[string]Simple `json:"map_field"`
-	}
-
 	fn := func(i input) (string, error) {
 		s, err := BuildSchema("test title", "test description", true, i.i)
 		b, _ := json.Marshal(s)
@@ -89,7 +85,7 @@ func TestBuildSchema(t *testing.T) {
 		},
 		"map test object": {
 			Input: input{
-				i: map[string]Simple{
+				i: map[string]PrimitiveTypes{
 					"keyvalue": {F1: 123, F2: "string value"},
 				},
 				print: true,

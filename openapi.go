@@ -42,8 +42,8 @@ type Responses map[Code]Response
 
 // Response describes a single response from an API Operation
 type Response struct {
-	Desc    string  `json:"description,omitempty"`
-	Content Content `json:"content,omitempty"`
+	Desc    string  `json:"description,omitempty"` // A short description of the response. CommonMark syntax MAY be used for rich text representation.
+	Content Content `json:"content,omitempty"`     // A map containing descriptions of potential response payloads. The key is a media type or media type range and the value describes it.
 }
 
 type Media struct {
@@ -119,12 +119,12 @@ type ServerVar struct {
 }
 
 type Tag struct {
-	Name         string        `json:"name"`
-	Desc         string        `json:"description"`
-	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"`
+	Name         string        `json:"name" required:"true"`   // REQUIRED. The name of the tag.
+	Desc         string        `json:"description"`            // A short description for the tag. CommonMark syntax MAY be used for rich text representation.
+	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"` // Additional external documentation for this tag.
 }
 
 type ExternalDocs struct {
-	Desc string `json:"description"`
-	URL  string `json:"url" required:"true"`
+	Desc string `json:"description"`         // A short description of the target documentation. CommonMark syntax MAY be used for rich text representation.
+	URL  string `json:"url" required:"true"` // REQUIRED. The URL for the target documentation. Value MUST be in the format of a URL.
 }

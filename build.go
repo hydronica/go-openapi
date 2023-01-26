@@ -158,7 +158,7 @@ type Route struct {
 	Requests  map[string]RouteReq   // key reference for requests
 }
 
-// RouteResp is a simplified definition for a Response to a given method
+// RouteResp is a simplified definition for the OpenApi Response to manage the responses
 type RouteResp struct {
 	Code    string // response code (as a string) "200","400","302"
 	Content MIMEType
@@ -427,20 +427,21 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 		key := value.MapKeys()[0]
 		val := value.MapIndex(key)
 
-		simple, k, f := isSimpleType(val.Kind())
-		if simple {
+		typeInfo := primitiveTypes(val.Kind())
+		if typeInfo.Simple {
 			s.AddProperties = &Schema{
-				Type:   k,
-				Format: f,
+				Type:   typeInfo.Kind,
+				Format: typeInfo.Format,
 			}
-		} else {
-			schema, err := BuildSchema("", "", false, val.Interface())
-			if err != nil {
-				return *s.Items, fmt.Errorf("error building map dictionary schema %w", err)
-			}
-			schema.Type = Object.String()
-			s.AddProperties = &schema
+			return s, nil
 		}
+		schema, err := BuildSchema("", "", false, val.Interface())
+		if err != nil {
+			return *s.Items, fmt.Errorf("error building map dictionary schema %w", err)
+		}
+		schema.Type = Object.String()
+		s.AddProperties = &schema
+
 	case reflect.Bool:
 		s.Type = Boolean.String()
 	case reflect.String:
@@ -471,10 +472,10 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 			}
 			prop := s.Properties[varName]
 
-			simple, k, f := isSimpleType(fieldType)
-			if simple {
-				prop.Type = k
-				prop.Format = f
+			typeInfo := primitiveTypes(fieldType)
+			if typeInfo.Simple {
+				prop.Type = typeInfo.Kind
+				prop.Format = typeInfo.Format
 			}
 
 			prop.Desc = field.Tag.Get("description")
@@ -517,11 +518,11 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 					prop.Items = &items
 					prop.Items.Type = Object.String()
 				}
-				simple, name, format := isSimpleType(fieldKind)
-				if simple {
+				typeInfo := primitiveTypes(fieldKind)
+				if typeInfo.Simple {
 					prop.Items = &Schema{
-						Type:   name,
-						Format: format,
+						Type:   typeInfo.Kind,
+						Format: typeInfo.Format,
 					}
 				}
 			}
@@ -543,11 +544,11 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 			prop.Type = Object.String()
 			s.Items = &prop
 		}
-		simple, name, format := isSimpleType(slicek)
-		if simple {
+		typeInfo := primitiveTypes(slicek)
+		if typeInfo.Simple {
 			s.Items = &Schema{
-				Type:   name,
-				Format: format,
+				Type:   typeInfo.Kind,
+				Format: typeInfo.Format,
 			}
 		}
 
@@ -556,21 +557,34 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 	return s, nil
 }
 
-func isSimpleType(t reflect.Kind) (simple bool, kind, format string) {
+type TypeInfo struct {
+	Simple bool
+	Kind   string // the type if this is a basic type i.e., int, float, string, bool
+	Format string // a format for the given type such as int64 int32 float
+}
+
+func primitiveTypes(t reflect.Kind) (ti TypeInfo) {
 	switch t {
 	case reflect.Bool:
-		return true, Boolean.String(), ""
+		ti.Simple = true
+		ti.Kind = Boolean.String()
 	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64:
-		return true, Integer.String(), Int64.String()
+		ti.Simple = true
+		ti.Kind = Integer.String()
+		ti.Format = Int64.String()
 	case reflect.Int32, reflect.Uint32:
-		return true, Integer.String(), Int32.String()
 	case reflect.Float32, reflect.Float64:
-		return true, Float.String(), Float.String()
+		ti.Simple = true
+		ti.Kind = Float.String()
+		ti.Format = Float.String()
 	case reflect.String:
-		return true, String.String(), ""
+		ti.Simple = true
+		ti.Kind = String.String()
 	default:
-		return false, t.String(), ""
+		ti.Kind = t.String()
 	}
+
+	return ti
 }
 
 // JSON returns the json string value for the OpenAPI object
