@@ -9,15 +9,12 @@ import (
 	"log"
 	"reflect"
 	"time"
-
-	jsoniter "github.com/json-iterator/go"
 )
 
 const Default = "default"
 
 func NewFromJson(spec string) (api *OpenAPI, err error) {
-	json := jsoniter.ConfigFastest
-	err = json.UnmarshalFromString(spec, &api)
+	err = json.Unmarshal([]byte(spec), &api)
 	if err != nil {
 		return nil, fmt.Errorf("error with unmarshal %w", err)
 	}
@@ -146,6 +143,7 @@ const (
 	Form    MIMEType = "multipart/form-data"
 )
 
+// Route is a simplified definition for managing routes in code
 type Route struct {
 	Tag       string
 	Desc      string
@@ -157,6 +155,7 @@ type Route struct {
 	Requests  map[string]RouteReq   // key reference for requests
 }
 
+// RouteResp is a simplified definition for the OpenApi Response to manage the responses
 type RouteResp struct {
 	Code    string // response code (as a string) "200","400","302"
 	Content MIMEType
@@ -331,7 +330,7 @@ func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
 
 	var rSchema Schema
 	if bo.Example != nil {
-		rSchema, err = BuildSchema(bo.Title, bo.Desc, true, bo.Example)
+		rSchema, err = buildSchema(bo.Title, bo.Desc, true, bo.Example, nil)
 		if err != nil {
 			log.Println("error building schema for endpoint", ur.Method, ur.Path)
 		}
@@ -362,7 +361,7 @@ func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {
 
 	var rSchema Schema
 	if bo.Example != nil {
-		rSchema, err = BuildSchema(bo.Title, bo.Desc, true, bo.Example)
+		rSchema, err = buildSchema(bo.Title, bo.Desc, true, bo.Example, nil)
 		if err != nil {
 			return fmt.Errorf("addresp: (%s) (%s) %w", ur.Method, ur.Path, err)
 		}
@@ -389,7 +388,8 @@ func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {
 
 // BuildSchema will create a schema object based on a given example body interface
 // if the example bool is true the body will be marshaled and added to the schema as an example
-func BuildSchema(title, desc string, example bool, body any) (s Schema, err error) {
+// tags is used if there is specific formatting for a given tag map[tag_name]tag_format
+func buildSchema(title, desc string, example bool, body any, tags map[string]string) (s Schema, err error) {
 	if body == nil {
 		return
 	}
@@ -409,6 +409,9 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 
 	if kind == reflect.Pointer {
 		value = value.Elem()
+		if !value.IsValid() {
+			return s, nil
+		}
 		typ = value.Type()
 		kind = value.Kind()
 	}
@@ -417,28 +420,91 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 	s.Desc = desc
 
 	switch kind {
+	case reflect.Int32, reflect.Uint32:
+		s.Type = Integer.String()
+		s.Format = Int32.String()
+	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64:
+		s.Type = Integer.String()
+		s.Format = Int64.String()
+	case reflect.Float32, reflect.Float64:
+		s.Type = Number.String()
+		s.Format = Float.String()
 	case reflect.Bool:
 		s.Type = Boolean.String()
 	case reflect.String:
 		s.Type = String.String()
+
+	case reflect.Map:
+		s.Type = Object.String()
+		keys := value.MapKeys()
+		if len(keys) == 0 {
+			return s, nil
+		}
+		// build out the map keys as a property schemas for openapi
+		for _, k := range keys {
+			v := value.MapIndex(k)
+			field := k.String()
+			if s.Properties == nil {
+				s.Properties = make(Properties)
+			}
+
+			schema, err := buildSchema("", "", false, v.Interface(), nil)
+			if err != nil {
+				return *s.Items, fmt.Errorf("error building map dictionary schema %w", err)
+			}
+
+			s.Properties[field] = schema
+		}
+
 	case reflect.Struct:
+		// these are special cases for time strings
+		// that may have formatting (time.Time default is RFC3339)
+		switch x := value.Interface().(type) {
+		case time.Time:
+			s.Type = String.String()
+			s.Format = time.RFC3339
+			if f, ok := tags["format"]; ok && f != "" {
+				s.Format = tags["format"]
+			}
+			return s, nil
+		case Time:
+			s.Type = String.String()
+			s.Format = x.Format
+			return s, nil
+		}
+
+		s.Type = Object.String()
 		numFields := typ.NumField()
 		for i := 0; i < numFields; i++ {
 			field := typ.Field(i)
+			// these are struct tags that are used in the openapi spec
+			tags := map[string]string{
+				"json":        field.Tag.Get("json"),        // used for the field name
+				"description": field.Tag.Get("descritpion"), // used for field description
+				"format":      field.Tag.Get("format"),      // used for time string formats
+			}
+
 			// skip any fields that are not exported
 			if !value.Field(i).CanInterface() {
 				continue
 			}
-			// val is the interface value of the struct field
-			val := value.Field(i).Interface()
+			// val is the reflect.value of the struct field
+			val := value.Field(i)
 			// the name of the struct field
 			varName := field.Name
 			// the json tag string value
-			jsonTag := field.Tag.Get("json")
+			// in go the json tag - is a skipped field (not output to json)
+			if tags["json"] == "-" {
+				continue
+			}
+			if tags["json"] != "" {
+				varName = tags["json"]
+			}
 			fieldType := typ.Field(i).Type.Kind()
 
 			if fieldType == reflect.Pointer {
-				va := reflect.ValueOf(val).Elem()
+				// get the value of the pointer
+				va := reflect.ValueOf(val.Interface()).Elem()
 				fieldType = va.Kind()
 			}
 
@@ -446,111 +512,44 @@ func BuildSchema(title, desc string, example bool, body any) (s Schema, err erro
 				s.Properties = make(Properties)
 			}
 			prop := s.Properties[varName]
+			prop.Desc = tags["description"]
 
-			simple, n, f := isSimpleType(fieldType)
-			if simple {
-				prop.Type = n
-				prop.Format = f
+			if val.IsValid() {
+				i := val.Interface()
+				prop, err = buildSchema("", "", false, i, tags)
+				s.Properties[varName] = prop
 			}
-
-			prop.Desc = field.Tag.Get("description")
-			if jsonTag != "" {
-				varName = jsonTag
-			}
-
-			if fieldType == reflect.Struct {
-				// handle time.Time types as strings with a format if given
-				t := reflect.TypeOf(val)
-				name := t.String()
-				switch name {
-				case "time.Time":
-					prop.Type = String.String()
-					prop.Format = time.RFC3339
-				case "openapi.Time":
-					prop.Type = String.String()
-					prop.Format = val.(Time).Format
-				default:
-					prop, err = BuildSchema("", "", false, val)
-					if err != nil {
-						return *s.Items, fmt.Errorf("error building struct field schema %w", err)
-					}
-					prop.Type = Object.String()
-				}
-			}
-
-			if fieldType == reflect.Slice {
-				prop.Type = Array.String()
-				t := reflect.TypeOf(val).Elem()
-				fieldKind := t.Kind()
-				obj := reflect.New(t).Interface()
-				if fieldKind == reflect.Struct {
-					items, err := BuildSchema("", "", false, obj)
-					if err != nil {
-						return *s.Items, fmt.Errorf("error building array field schema %w", err)
-					}
-					prop.Items = &items
-					prop.Items.Type = Object.String()
-				}
-				simple, name, format := isSimpleType(fieldKind)
-				if simple {
-					prop.Items = &Schema{
-						Type:   name,
-						Format: format,
-					}
-				}
-			}
-
-			s.Properties[varName] = prop
 		}
-	case reflect.Array:
+
+	case reflect.Slice, reflect.Array:
+		var err error
+		prop := Schema{}
 		s.Type = Array.String()
-	case reflect.Slice:
-		s.Type = Array.String()
-		elem := reflect.TypeOf(body).Elem()
-		slicek := elem.Kind()
-		obj := reflect.New(elem).Interface()
-		if slicek == reflect.Struct {
-			prop, err := BuildSchema("", "", false, obj)
+		if value.Len() > 0 && value.IsValid() {
+			obj := value.Index(0).Interface()
+			prop, err = buildSchema("", "", false, obj, nil)
 			if err != nil {
 				return *s.Items, fmt.Errorf("error building schema %w", err)
 			}
-			prop.Type = Object.String()
-			s.Items = &prop
 		}
-		simple, name, format := isSimpleType(slicek)
-		if simple {
-			s.Items = &Schema{
-				Type:   name,
-				Format: format,
-			}
-		}
-
+		s.Items = &prop
+	default:
+		fmt.Println("SHOULD NEVER GET HERE")
 	}
 
 	return s, nil
 }
 
-func isSimpleType(t reflect.Kind) (simple bool, kind, format string) {
-	switch t {
-	case reflect.Bool:
-		return true, Boolean.String(), ""
-	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64:
-		return true, Integer.String(), Int64.String()
-	case reflect.Int32, reflect.Uint32:
-		return true, Integer.String(), Int32.String()
-	case reflect.Float32, reflect.Float64:
-		return true, Float.String(), Float.String()
-	case reflect.String:
-		return true, String.String(), ""
-	default:
-		return false, t.String(), ""
-	}
+type TypeInfo struct {
+	Simple bool   // is the type a primitive type i.e., int, float, string, bool
+	Type   string // the type name if this is a primitive type
+	Format string // a format for the given type such as int64 int32 float
 }
 
 // JSON returns the json string value for the OpenAPI object
 func (o *OpenAPI) JSON() []byte {
-	json := jsoniter.ConfigFastest
 	b, _ := json.Marshal(o)
+	b, _ = JSONRemarshal(b)
 	return b
 }
 

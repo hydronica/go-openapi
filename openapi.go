@@ -42,8 +42,8 @@ type Responses map[Code]Response
 
 // Response describes a single response from an API Operation
 type Response struct {
-	Desc    string  `json:"description,omitempty"`
-	Content Content `json:"content,omitempty"`
+	Desc    string  `json:"description,omitempty"` // A short description of the response. CommonMark syntax MAY be used for rich text representation.
+	Content Content `json:"content,omitempty"`     // A map containing descriptions of potential response payloads. The key is a media type or media type range and the value describes it.
 }
 
 type Media struct {
@@ -57,15 +57,19 @@ type RequestBody struct {
 	Required *bool   `json:"required,omitempty"`
 }
 
+// Schema Object allows the definition of input and output data types
+// These types can be objects, but also primitives and arrays
+// This object is an extended subset of the JSON Schema Specification
 type Schema struct {
-	AddProperties *Schema    `json:"additionalProperties,omitempty"`
-	Title         string     `json:"title,omitempty"`
-	Desc          string     `json:"description,omitempty"` // CommonMark syntax MAY be used for rich text representation.
-	Type          string     `json:"type,omitempty"`        // Value MUST be a string. Multiple types via an array are not supported.
-	Format        string     `json:"format,omitempty"`      // See Data Type Formats for further details. While relying on JSON Schema's defined formats, the OAS offers a few additional predefined formats.
-	Items         *Schema    `json:"items,omitempty"`       // Value MUST be an object and not an array. Inline or referenced schema MUST be of a Schema Object and not a standard JSON Schema. items MUST be present if the type is array.
-	Properties    Properties `json:"properties,omitempty"`  // Property definitions MUST be a Schema Object and not a standard JSON Schema (inline or referenced).
-	Example       any        `json:"example,omitempty"`     // A free-form property to include an example of an instance for this schema. To represent examples that cannot be naturally represented in JSON or YAML, a string value can be used to contain the example with escaping where necessary.
+	AddProperties *Schema       `json:"additionalProperties,omitempty"` // To define a dictionary, use type: object and use the additionalProperties keyword to specify the type of values in key/value pairs.
+	Title         string        `json:"title,omitempty"`                // Title?
+	Desc          string        `json:"description,omitempty"`          // CommonMark syntax MAY be used for rich text representation.
+	Type          string        `json:"type,omitempty"`                 // Value MUST be a string. Multiple types via an array are not supported.
+	Format        string        `json:"format,omitempty"`               // See Data Type Formats for further details. While relying on JSON Schema's defined formats, the OAS offers a few additional predefined formats.
+	Items         *Schema       `json:"items,omitempty"`                // Value MUST be an object and not an array. Inline or referenced schema MUST be of a Schema Object and not a standard JSON Schema. items MUST be present if the type is array.
+	Properties    Properties    `json:"properties,omitempty"`           // Property definitions MUST be a Schema Object and not a standard JSON Schema (inline or referenced).
+	Example       any           `json:"example,omitempty"`              // A free-form property to include an example of an instance for this schema. To represent examples that cannot be naturally represented in JSON or YAML, a string value can be used to contain the example with escaping where necessary.
+	ExternalDocs  *ExternalDocs `json:"externalDocs,omitempty"`         // Additional external documentation for this schema.
 }
 
 type Properties map[string]Schema
@@ -115,12 +119,12 @@ type ServerVar struct {
 }
 
 type Tag struct {
-	Name         string        `json:"name"`
-	Desc         string        `json:"description"`
-	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"`
+	Name         string        `json:"name" required:"true"`   // REQUIRED. The name of the tag.
+	Desc         string        `json:"description"`            // A short description for the tag. CommonMark syntax MAY be used for rich text representation.
+	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"` // Additional external documentation for this tag.
 }
 
 type ExternalDocs struct {
-	Desc string `json:"description"`
-	URL  string `json:"url" required:"true"`
+	Desc string `json:"description"`         // A short description of the target documentation. CommonMark syntax MAY be used for rich text representation.
+	URL  string `json:"url" required:"true"` // REQUIRED. The URL for the target documentation. Value MUST be in the format of a URL.
 }

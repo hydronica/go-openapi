@@ -11,6 +11,11 @@ import (
 
 func TestBuildSchema(t *testing.T) {
 
+	type PrimitiveTypes struct {
+		F1 int    `json:"field_one"`
+		F2 string `json:"field_two"`
+	}
+
 	type TestA struct {
 		F1 string   `json:"field_one"`
 		F2 []string `json:"field_two"`
@@ -38,8 +43,8 @@ func TestBuildSchema(t *testing.T) {
 
 	// test a time type
 	type TestT struct {
-		F1 time.Time `json:"time.time"`    // time.Time is always formated as RFC3339 (unless the example has it's own custom marshal for time.Time)
-		F2 Time      `json:"openapi.time"` // custom time format can be used
+		F1 time.Time `json:"time.time" format:"2006-01-02"` // time.Time is always formated as RFC3339 (unless the example has it's own custom marshal for time.Time)
+		F2 Time      `json:"openapi.time"`                  // custom time format can be used
 	}
 
 	type TestF struct {
@@ -58,7 +63,7 @@ func TestBuildSchema(t *testing.T) {
 	}
 
 	fn := func(i input) (string, error) {
-		s, err := BuildSchema("test title", "test description", true, i.i)
+		s, err := buildSchema("test title", "test description", true, i.i, nil)
 		b, _ := json.Marshal(s)
 		b, _ = JSONRemarshal(b)
 		if i.print {
@@ -69,7 +74,41 @@ func TestBuildSchema(t *testing.T) {
 
 	var z *TestF = nil // a nil typed pointer to test
 	cases := trial.Cases[input, string]{
-		"nil typed pointer test": {
+		"map_test_interface": {
+			Input: input{
+				i: map[string]any{
+					"customValues": []map[string]any{
+						{"adate": "2023-02-01T00:00:00Z", "avalue": 1427200},
+						{"bdate": "2023-01-01T00:00:00Z", "bvalue": 1496400},
+					},
+					"default": map[string][]float64{
+						"monthTrans": {1.1, 2.2, 3.3, 4.4},
+						"monthProc":  {5.5, 6.6, 7.7, 8.8},
+					},
+				},
+				print: false,
+			},
+			Expected: `{"description":"test description","example":{"customValues":[{"adate":"2023-02-01T00:00:00Z","avalue":1427200},{"bdate":"2023-01-01T00:00:00Z","bvalue":1496400}],"default":{"monthProc":[5.5,6.6,7.7,8.8],"monthTrans":[1.1,2.2,3.3,4.4]}},"properties":{"customValues":{"items":{"properties":{"adate":{"type":"string"},"avalue":{"format":"int64","type":"integer"}},"type":"object"},"type":"array"},"default":{"properties":{"monthProc":{"items":{"format":"float","type":"number"},"type":"array"},"monthTrans":{"items":{"format":"float","type":"number"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
+		},
+		"map_test_simple": {
+			Input: input{
+				i: map[string]string{
+					"key": "value",
+				},
+				print: false,
+			},
+			Expected: `{"description":"test description","example":{"key":"value"},"properties":{"key":{"type":"string"}},"title":"test title","type":"object"}`,
+		},
+		"map_test_object": {
+			Input: input{
+				i: map[string]PrimitiveTypes{
+					"keyvalue": {F1: 123, F2: "string value"},
+				},
+				print: false,
+			},
+			Expected: `{"description":"test description","example":{"keyvalue":{"field_one":123,"field_two":"string value"}},"properties":{"keyvalue":{"properties":{"field_one":{"format":"int64","type":"integer"},"field_two":{"type":"string"}},"type":"object"}},"title":"test title","type":"object"}`,
+		},
+		"nil_typed_pointer_test": {
 			Input: input{
 				i: TestP{
 					F1: &TestF{
@@ -80,9 +119,9 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"f1_pointer_field":{"f1_int":321,"f2_bool":true},"f2_pointer_field":null},"properties":{"f1_pointer_field":{"properties":{"f1_int":{"format":"int64","type":"integer"},"f2_bool":{"type":"boolean"}},"type":"object"},"f2_pointer_field":{}},"title":"test title"}`,
+			Expected: `{"description":"test description","example":{"f1_pointer_field":{"f1_int":321,"f2_bool":true},"f2_pointer_field":null},"properties":{"f1_pointer_field":{"properties":{"f1_int":{"format":"int64","type":"integer"},"f2_bool":{"type":"boolean"}},"type":"object"},"f2_pointer_field":{}},"title":"test title","type":"object"}`,
 		},
-		"time test": {
+		"time_test": {
 			Input: input{
 				i: TestT{
 					F1: time.Date(2023, time.January, 11, 0, 0, 0, 0, time.UTC),
@@ -93,7 +132,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"openapi.time":"2023-02-02","time.time":"2023-01-11T00:00:00Z"},"properties":{"openapi.time":{"format":"2006-01-02","type":"string"},"time.time":{"format":"2006-01-02T15:04:05Z07:00","type":"string"}},"title":"test title"}`,
+			Expected: `{"description":"test description","example":{"openapi.time":"2023-02-02","time.time":"2023-01-11T00:00:00Z"},"properties":{"openapi.time":{"format":"2006-01-02","type":"string"},"time.time":{"format":"2006-01-02","type":"string"}},"title":"test title","type":"object"}`,
 		},
 		"simple_object_test": {
 			Input: input{
@@ -104,7 +143,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]},"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"title":"test title"}`,
+			Expected: `{"description":"test description","example":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]},"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"title":"test title","type":"object"}`,
 		},
 		"object_within_object": {
 			Input: input{
@@ -117,7 +156,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"b_field_one":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]}},"properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title"}`,
+			Expected: `{"description":"test description","example":{"b_field_one":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]}},"properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
 		"pointer_object": {
 			Input: input{
@@ -130,7 +169,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"b_field_one":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]}},"properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title"}`,
+			Expected: `{"description":"test description","example":{"b_field_one":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]}},"properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
 		"pointer_in_object": {
 			Input: input{
@@ -143,7 +182,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"e_field_one":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]}},"properties":{"e_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title"}`,
+			Expected: `{"description":"test description","example":{"e_field_one":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]}},"properties":{"e_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
 		"array_of_array_objects": {
 			Input: input{
