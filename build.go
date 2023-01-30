@@ -9,15 +9,12 @@ import (
 	"log"
 	"reflect"
 	"time"
-
-	jsoniter "github.com/json-iterator/go"
 )
 
 const Default = "default"
 
 func NewFromJson(spec string) (api *OpenAPI, err error) {
-	json := jsoniter.ConfigFastest
-	err = json.UnmarshalFromString(spec, &api)
+	err = json.Unmarshal([]byte(spec), &api)
 	if err != nil {
 		return nil, fmt.Errorf("error with unmarshal %w", err)
 	}
@@ -551,7 +548,6 @@ type TypeInfo struct {
 
 // JSON returns the json string value for the OpenAPI object
 func (o *OpenAPI) JSON() []byte {
-	json := jsoniter.ConfigFastest
 	b, _ := json.Marshal(o)
 	return b
 }
