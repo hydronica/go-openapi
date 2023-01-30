@@ -549,6 +549,7 @@ type TypeInfo struct {
 // JSON returns the json string value for the OpenAPI object
 func (o *OpenAPI) JSON() []byte {
 	b, _ := json.Marshal(o)
+	b, _ = JSONRemarshal(b)
 	return b
 }
 
