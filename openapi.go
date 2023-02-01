@@ -9,9 +9,6 @@ type OpenAPI struct {
 	Info    Info     `json:"info"`              // REQUIRED. Provides metadata about the API. The metadata MAY be used by tooling as required.
 	//Components   Components    `json:"components,omitempty"`   // reuseable components not used here
 	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"` //Additional external documentation.
-
-	// non OpenAPI external reference for simplified routes
-	Routes map[UniqueRoute]Route `json:"-"`
 }
 
 // Operation describes a single API operation on a path.
@@ -47,14 +44,33 @@ type Response struct {
 }
 
 type Media struct {
-	Schema Schema `json:"schema"`
+	Schema   Schema              `json:"schema,omitempty"`   // The schema defining the content of the request, response, or parameter.
+	Example  any                 `json:"example,omitempty"`  // Example of the media type. The example object SHOULD be in the correct format as specified by the media type. The example field is mutually exclusive of the examples field. Furthermore, if referencing a schema which contains an example, the example value SHALL override the example provided by the schema.
+	Examples map[string]Example  `json:"examples,omitempty"` // Examples of the media type. Each example object SHOULD match the media type and specified schema if present. The examples field is mutually exclusive of the example field. Furthermore, if referencing a schema which contains an example, the examples value SHALL override the example provided by the schema.
+	Encoding map[string]Encoding `json:"encoding,omitempty"` // A map between a property name and its encoding information. The key, being the property name, MUST exist in the schema as a property.
+}
+
+type Encoding struct {
+	ContentType string `json:"contentType,omitempty"` // The Content-Type for encoding a specific property.
+	// headers  map[string]headerObject :  not implemented needed if media is multipart
+	Style string `json:"style"` // Describes how a specific property value will be serialized depending on its type.
+	// explode       bool not implemented needed if media is application/x-www-form-urlencoded
+	// allowReserved bool not implemented needed if media is application/x-www-form-urlencoded
+}
+
+// Example object MAY be extended with Specification Extensions.
+type Example struct {
+	Summary       string `json:"summary"`       // Short description for the example.
+	Desc          string `json:"descvription"`  // Long description for the example. CommonMark syntax MAY be used for rich text representation.
+	ExternalValue string `json:"externalValue"` // A URL that points to the literal example. This provides the capability to reference examples that cannot easily be included in JSON or YAML documents. The value field and externalValue field are mutually exclusive.
+	Value         any    `json:"value"`         // Embedded literal example. The value field and externalValue field are mutually exclusive. To represent examples of media types that cannot naturally represented in JSON or YAML, use a string value to contain the example, escaping where necessary.
 }
 
 // RequestBody describes a single request body.
 type RequestBody struct {
-	Desc     string  `json:"description,omitempty"`
-	Content  Content `json:"content,omitempty"`
-	Required *bool   `json:"required,omitempty"`
+	Desc     string  `json:"description,omitempty"` // A brief description of the request body. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
+	Content  Content `json:"content,omitempty"`     // REQUIRED. The content of the request body. The key is a media type or media type range and the value describes it. For requests that match multiple keys, only the most specific key is applicable. e.g. text/plain overrides text/*
+	Required *bool   `json:"required,omitempty"`    // Determines if the request body is required in the request. Defaults to false.
 }
 
 // Schema Object allows the definition of input and output data types

@@ -218,47 +218,42 @@ func (o *OpenAPI) AddRoute(path, method, tag, desc, summary string) (ur UniqueRo
 	m.Tags = append(m.Tags, tag)
 	m.OperationID = string(ur.Method) + "_" + ur.Path
 
-	// save the given route in the spec object for later reference
-	if o.Routes == nil {
-		o.Routes = make(map[UniqueRoute]Route)
-	}
-
-	o.Routes[ur] = Route{
-		Tag:  tag,
-		Desc: desc,
-	}
-
 	p[ur.Method] = m
 	o.Paths[ur.Path] = p
 
 	return ur, nil
 }
 
+type ExampleObject struct {
+	Example any
+	Summary string
+}
+
 type BodyObject struct {
-	MIMEType   MIMEType // the mimetype for the object
-	HttpStatus Code     // Any HTTP status code, '200', '201', '400' the value of 'default' can be used to cover all responses not defined
-	Example    any      // the response object example used to determine the type and name of each field returned
-	Desc       string   // description of the body
-	Title      string   // object title
+	MIMEType   MIMEType        // the mimetype for the object
+	HttpStatus Code            // Any HTTP status code, '200', '201', '400' the value of 'default' can be used to cover all responses not defined
+	Examples   []ExampleObject // the response object examples used to determine the type and name of each field returned
+	Desc       string          // description of the body
+	Title      string          // object title
 }
 
 // NewRespBody is a helper function to create a response body object
 // example is a go object to represent the body
-func NewRespBody(mtype MIMEType, status Code, desc string, example any) BodyObject {
+func NewRespBody(mtype MIMEType, status Code, desc string, examples []ExampleObject) BodyObject {
 	return BodyObject{
 		MIMEType:   mtype,
 		HttpStatus: status,
-		Example:    example,
+		Examples:   examples,
 		Desc:       desc,
 	}
 }
 
 // NewReqBody is a helper function to create a request body object
 // example is a go object to represent the body
-func NewReqBody(mtype MIMEType, desc string, example any) BodyObject {
+func NewReqBody(mtype MIMEType, desc string, examples []ExampleObject) BodyObject {
 	return BodyObject{
 		MIMEType: mtype,
-		Example:  example,
+		Examples: examples,
 		Desc:     desc,
 	}
 }
@@ -329,11 +324,12 @@ func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
 	}
 
 	var rSchema Schema
-	if bo.Example != nil {
-		rSchema, err = buildSchema(bo.Title, bo.Desc, true, bo.Example, nil)
+	if len(bo.Examples) > 0 {
+		rSchema, err = buildSchema(bo.Title, bo.Desc, true, bo.Examples[0].Example, nil)
 		if err != nil {
 			log.Println("error building schema for endpoint", ur.Method, ur.Path)
 		}
+
 	}
 
 	m.RequestBody = &RequestBody{
@@ -354,48 +350,51 @@ func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
 // AddResponse adds response information to the api responses map which is part of the paths map
 // adds an example and schema to the response body
 func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {
-	p, m, err := o.PathMethod(ur.Path, ur.Method)
+	om, op, err := o.PathMethod(ur.Path, ur.Method)
 	if err != nil {
 		return err
 	}
-
+	examples := make(map[string]Example)
 	var rSchema Schema
-	if bo.Example != nil {
-		rSchema, err = buildSchema(bo.Title, bo.Desc, true, bo.Example, nil)
+	if len(bo.Examples) > 0 {
+		rSchema, err = buildSchema(bo.Title, bo.Desc, true, bo.Examples[0].Example, nil)
 		if err != nil {
 			return fmt.Errorf("addresp: (%s) (%s) %w", ur.Method, ur.Path, err)
 		}
+		for i, e := range bo.Examples {
+			name := fmt.Sprintf("%s_%s_%d", ur.Method, Method(ur.Path), i)
+			examples[name] = Example{
+				Summary: e.Summary,
+				Value:   e.Example,
+			}
+		}
 	}
 
-	if m.Responses == nil {
-		m.Responses = make(Responses)
+	if op.Responses == nil {
+		op.Responses = make(Responses)
 	}
 
-	m.Responses[bo.HttpStatus] = Response{
-		Desc: bo.Desc,
-		Content: Content{
-			bo.MIMEType: {
-				Schema: rSchema,
-			},
+	r := op.Responses[bo.HttpStatus]
+	r.Desc = bo.Desc
+	r.Content = Content{
+		bo.MIMEType: {
+			Schema:   rSchema,
+			Examples: examples,
 		},
 	}
 
-	p[ur.Method] = m
-	o.Paths[ur.Path] = p
+	op.Responses[bo.HttpStatus] = r
+	om[ur.Method] = op
+	o.Paths[ur.Path] = om
 
 	return nil
 }
 
-// BuildSchema will create a schema object based on a given example body interface
-// if the example bool is true the body will be marshaled and added to the schema as an example
+// BuildSchema will create a schema object based on a given example object interface
 // tags is used if there is specific formatting for a given tag map[tag_name]tag_format
 func buildSchema(title, desc string, example bool, body any, tags map[string]string) (s Schema, err error) {
 	if body == nil {
 		return
-	}
-
-	if example {
-		s.Example = body
 	}
 
 	value := reflect.ValueOf(body)
