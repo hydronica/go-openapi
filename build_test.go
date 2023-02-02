@@ -88,7 +88,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"customValues":[{"adate":"2023-02-01T00:00:00Z","avalue":1427200},{"bdate":"2023-01-01T00:00:00Z","bvalue":1496400}],"default":{"monthProc":[5.5,6.6,7.7,8.8],"monthTrans":[1.1,2.2,3.3,4.4]}},"properties":{"customValues":{"items":{"properties":{"adate":{"type":"string"},"avalue":{"format":"int64","type":"integer"}},"type":"object"},"type":"array"},"default":{"properties":{"monthProc":{"items":{"format":"float","type":"number"},"type":"array"},"monthTrans":{"items":{"format":"float","type":"number"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
+			Expected: `{"description":"test description","properties":{"customValues":{"items":{"properties":{"adate":{"type":"string"},"avalue":{"format":"int64","type":"integer"}},"type":"object"},"type":"array"},"default":{"properties":{"monthProc":{"items":{"format":"float","type":"number"},"type":"array"},"monthTrans":{"items":{"format":"float","type":"number"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
 		"map_test_simple": {
 			Input: input{
@@ -97,7 +97,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"key":"value"},"properties":{"key":{"type":"string"}},"title":"test title","type":"object"}`,
+			Expected: `{"description":"test description","properties":{"key":{"type":"string"}},"title":"test title","type":"object"}`,
 		},
 		"map_test_object": {
 			Input: input{
@@ -106,7 +106,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"keyvalue":{"field_one":123,"field_two":"string value"}},"properties":{"keyvalue":{"properties":{"field_one":{"format":"int64","type":"integer"},"field_two":{"type":"string"}},"type":"object"}},"title":"test title","type":"object"}`,
+			Expected: `{"description":"test description","properties":{"keyvalue":{"properties":{"field_one":{"format":"int64","type":"integer"},"field_two":{"type":"string"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
 		"nil_typed_pointer_test": {
 			Input: input{
@@ -119,7 +119,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"f1_pointer_field":{"f1_int":321,"f2_bool":true},"f2_pointer_field":null},"properties":{"f1_pointer_field":{"properties":{"f1_int":{"format":"int64","type":"integer"},"f2_bool":{"type":"boolean"}},"type":"object"},"f2_pointer_field":{}},"title":"test title","type":"object"}`,
+			Expected: `{"description":"test description","properties":{"f1_pointer_field":{"properties":{"f1_int":{"format":"int64","type":"integer"},"f2_bool":{"type":"boolean"}},"type":"object"},"f2_pointer_field":{}},"title":"test title","type":"object"}`,
 		},
 		"time_test": {
 			Input: input{
@@ -132,7 +132,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"openapi.time":"2023-02-02","time.time":"2023-01-11T00:00:00Z"},"properties":{"openapi.time":{"format":"2006-01-02","type":"string"},"time.time":{"format":"2006-01-02","type":"string"}},"title":"test title","type":"object"}`,
+			Expected: `{"description":"test description","properties":{"openapi.time":{"format":"2006-01-02","type":"string"},"time.time":{"format":"2006-01-02","type":"string"}},"title":"test title","type":"object"}`,
 		},
 		"simple_object_test": {
 			Input: input{
@@ -143,7 +143,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]},"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"title":"test title","type":"object"}`,
+			Expected: `{"description":"test description","properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"title":"test title","type":"object"}`,
 		},
 		"object_within_object": {
 			Input: input{
@@ -156,7 +156,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"b_field_one":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]}},"properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
+			Expected: `{"description":"test description","properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
 		"pointer_object": {
 			Input: input{
@@ -169,7 +169,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"b_field_one":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]}},"properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
+			Expected: `{"description":"test description","properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
 		"pointer_in_object": {
 			Input: input{
@@ -182,7 +182,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":{"e_field_one":{"field_one":"testing a","field_three":1234,"field_two":["one","two","three"]}},"properties":{"e_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
+			Expected: `{"description":"test description","properties":{"e_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
 		"array_of_array_objects": {
 			Input: input{
@@ -202,7 +202,7 @@ func TestBuildSchema(t *testing.T) {
 				},
 				print: false,
 			},
-			Expected: `{"description":"test description","example":[{"c_field_one":[{"field_one":"testing slice 1","field_three":987,"field_two":["nine","eight","seven"]},{"field_one":"testing slice 2","field_three":321,"field_two":["three","two","one"]}]}],"items":{"properties":{"c_field_one":{"items":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"},"type":"array"}},"type":"object"},"title":"test title","type":"array"}`,
+			Expected: `{"description":"test description","items":{"properties":{"c_field_one":{"items":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"},"type":"array"}},"type":"object"},"title":"test title","type":"array"}`,
 		},
 	}
 
