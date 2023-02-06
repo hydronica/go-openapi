@@ -227,7 +227,8 @@ func (o *OpenAPI) AddRoute(path, method, tag, desc, summary string) (ur UniqueRo
 
 type ExampleObject struct {
 	Example any
-	Summary string
+	Name    string
+	Desc    string
 }
 
 type BodyObject struct {
@@ -319,31 +320,43 @@ func (o *OpenAPI) PathMethod(path string, method Method) (om OperationMap, op Op
 // AddRequest will add a request object for the unique route in the openapi receiver
 // adds an example and schema to the request body
 func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
-	p, m, err := o.PathMethod(ur.Path, ur.Method)
+	om, op, err := o.PathMethod(ur.Path, ur.Method)
 	if err != nil {
 		return err
 	}
 
+	examples := make(map[string]Example)
 	var rSchema Schema
 	if len(bo.Examples) > 0 {
 		rSchema, err = buildSchema(bo.Title, bo.Desc, true, bo.Examples[0].Example, nil)
 		if err != nil {
 			log.Println("error building schema for endpoint", ur.Method, ur.Path)
 		}
-
+		for i, e := range bo.Examples {
+			if e.Name == "" {
+				e.Name = fmt.Sprintf("example: %d", i)
+			}
+			examples[e.Name] = Example{
+				Summary: e.Name,
+				Desc:    e.Desc,
+				Value:   e.Example,
+			}
+		}
 	}
 
-	m.RequestBody = &RequestBody{
-		Desc: bo.Desc,
-		Content: Content{
-			bo.MIMEType: {
-				Schema: rSchema,
-			},
-		},
+	if op.RequestBody == nil {
+		op.RequestBody = &RequestBody{
+			Content: make(Content),
+		}
 	}
 
-	p[ur.Method] = m
-	o.Paths[ur.Path] = p
+	r := op.RequestBody.Content[bo.MIMEType]
+	r.Examples = examples
+	r.Schema = rSchema
+	r.Schema.Desc = bo.Desc
+	op.RequestBody.Content[bo.MIMEType] = r
+	om[ur.Method] = op
+	o.Paths[ur.Path] = om
 
 	return nil
 }
@@ -363,9 +376,12 @@ func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {
 			return fmt.Errorf("addresp: (%s) (%s) %w", ur.Method, ur.Path, err)
 		}
 		for i, e := range bo.Examples {
-			name := fmt.Sprintf("%s_%s_%d", ur.Method, Method(ur.Path), i)
-			examples[name] = Example{
-				Summary: e.Summary,
+			if e.Name == "" {
+				e.Name = fmt.Sprintf("example: %d", i+1)
+			}
+			examples[e.Name] = Example{
+				Summary: e.Name,
+				Desc:    e.Desc,
 				Value:   e.Example,
 			}
 		}
