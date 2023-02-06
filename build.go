@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -497,7 +498,8 @@ func buildSchema(title, desc string, example bool, body any, tags map[string]str
 				continue
 			}
 			if tags["json"] != "" {
-				varName = tags["json"]
+				// ,omitempty is a go json template option to ignore the field if it has a zero value
+				varName = strings.Replace(tags["json"], ",omitempty", "", 1)
 			}
 			fieldType := typ.Field(i).Type.Kind()
 
