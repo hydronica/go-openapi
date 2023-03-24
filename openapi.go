@@ -61,7 +61,7 @@ type Encoding struct {
 // Example object MAY be extended with Specification Extensions.
 type Example struct {
 	Summary       string `json:"summary"`       // Short description for the example.
-	Desc          string `json:"descvription"`  // Long description for the example. CommonMark syntax MAY be used for rich text representation.
+	Desc          string `json:"description"`   // Long description for the example. CommonMark syntax MAY be used for rich text representation.
 	ExternalValue string `json:"externalValue"` // A URL that points to the literal example. This provides the capability to reference examples that cannot easily be included in JSON or YAML documents. The value field and externalValue field are mutually exclusive.
 	Value         any    `json:"value"`         // Embedded literal example. The value field and externalValue field are mutually exclusive. To represent examples of media types that cannot naturally represented in JSON or YAML, use a string value to contain the example, escaping where necessary.
 }
@@ -95,12 +95,13 @@ type Ref struct {
 }
 
 type Param struct {
-	Name     string  `json:"name,omitempty"`        // REQUIRED. The name of the parameter. Parameter names are case sensitive.
-	Desc     string  `json:"description,omitempty"` // A brief description of the parameter. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
-	Style    string  `json:"style,omitempty"`       // Describes how the parameter value will be serialized depending on the type of the parameter value. Default values (based on value of in): for query - form; for path - simple; for header - simple; for cookie - form.
-	In       string  `json:"in"`                    // REQUIRED. The location of the parameter. Possible values are "query", "header", "path" or "cookie".
-	Schema   *Schema `json:"schema,omitempty"`      // The schema defining the type used for the parameter.
-	Required bool    `json:"required"`              // Determines whether this parameter is mandatory. If the parameter location is "path", this property is REQUIRED and its value MUST be true. Otherwise, the property MAY be included and its default value is false
+	Name     string             `json:"name,omitempty"`        // REQUIRED. The name of the parameter. Parameter names are case sensitive.
+	Desc     string             `json:"description,omitempty"` // A brief description of the parameter. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
+	Style    string             `json:"style,omitempty"`       // Describes how the parameter value will be serialized depending on the type of the parameter value. Default values (based on value of in): for query - form; for path - simple; for header - simple; for cookie - form.
+	In       string             `json:"in"`                    // REQUIRED. The location of the parameter. Possible values are "query", "header", "path" or "cookie".
+	Schema   *Schema            `json:"schema,omitempty"`      // The schema defining the type used for the parameter.
+	Examples map[string]Example `json:"examples"`              // Examples of the parameter’s potential value. Each example SHOULD contain a value in the correct format as specified in the parameter encoding.
+	Required bool               `json:"required"`              // Determines whether this parameter is mandatory. If the parameter location is "path", this property is REQUIRED and its value MUST be true. Otherwise, the property MAY be included and its default value is false
 }
 
 type Info struct {

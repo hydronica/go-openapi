@@ -41,14 +41,14 @@ type Requests map[string]RequestBody
 type Params map[string]Param
 
 type RouteParam struct {
-	Name      string // unique name reference
-	Desc      string // A brief description of the parameter. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
-	Required  bool   // is this paramater required
-	Location  string // REQUIRED. The location of the parameter. Possible values are "query", "header", "path" or "cookie".
-	Type      Type   // the type for the param i.e., string, integer, float, array
-	ArrayType Type   // if the Type is an array then this decribes the type for each value in the array, i.e., string, integer, Float
-	Format    Format
-	Example   map[string]any
+	Name      string          // unique name reference
+	Desc      string          // A brief description of the parameter. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
+	Required  bool            // is this paramater required
+	Location  string          // REQUIRED. The location of the parameter. Possible values are "query", "header", "path" or "cookie".
+	Type      Type            // the type for the param i.e., string, integer, float, array
+	ArrayType Type            // if the Type is an array then this decribes the type for each value in the array, i.e., string, integer, Float
+	Format    Format          // object format
+	Examples  []ExampleObject // example param values
 }
 
 type Method string
@@ -226,9 +226,10 @@ func (o *OpenAPI) AddRoute(path, method, tag, desc, summary string) (ur UniqueRo
 }
 
 type ExampleObject struct {
-	Example any
-	Name    string
-	Desc    string
+	Example any    // Example value
+	Name    string // object name
+	Summary string // short description summary
+	Desc    string // full (long) description
 }
 
 type BodyObject struct {
@@ -284,6 +285,7 @@ func (o *OpenAPI) AddParam(ur UniqueRoute, rp RouteParam) error {
 		param.Style = "simple"
 	}
 
+	// if no type is given defaults to string
 	if rp.Type == 0 {
 		param.Schema = &Schema{
 			Type: String.String(),
@@ -292,6 +294,16 @@ func (o *OpenAPI) AddParam(ur UniqueRoute, rp RouteParam) error {
 		param.Schema = &Schema{
 			Type:   rp.Type.String(),
 			Format: rp.Format.String(),
+		}
+	}
+
+	param.Examples = make(map[string]Example)
+
+	for _, e := range rp.Examples {
+		param.Examples[e.Name] = Example{
+			Value:   e.Example,
+			Summary: e.Summary,
+			Desc:    e.Desc,
 		}
 	}
 
@@ -337,7 +349,7 @@ func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
 				e.Name = fmt.Sprintf("example: %d", i)
 			}
 			examples[e.Name] = Example{
-				Summary: e.Name,
+				Summary: e.Summary,
 				Desc:    e.Desc,
 				Value:   e.Example,
 			}
@@ -380,7 +392,7 @@ func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {
 				e.Name = fmt.Sprintf("example: %d", i+1)
 			}
 			examples[e.Name] = Example{
-				Summary: e.Name,
+				Summary: e.Summary,
 				Desc:    e.Desc,
 				Value:   e.Example,
 			}
