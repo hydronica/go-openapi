@@ -158,7 +158,7 @@ type Route struct {
 
 // RouteResp is a simplified definition for the OpenApi Response to manage the responses
 type RouteResp struct {
-	Code    string // response code (as a string) "200","400","302"
+	Code    Code // response code (as a string) "200","400","302"
 	Content MIMEType
 	Ref     Reference // the reference name for the response object
 	Array   bool      // is the response object an array
@@ -371,6 +371,15 @@ func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
 	o.Paths[ur.Path] = om
 
 	return nil
+}
+
+func (o *OpenAPI) GetRoute(path, method string) (*Route, error) {
+	_, _, err := o.PathMethod(path, Method(method))
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }
 
 // AddResponse adds response information to the api responses map which is part of the paths map

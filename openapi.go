@@ -30,7 +30,7 @@ type Paths map[string]OperationMap
 type OperationMap map[Method]Operation // map of methods to a openAPI Operation object
 
 // Any HTTP status code, '200', '201', '400' the value of 'default' can be used to cover all responses not defined
-type Code string
+type Code int
 type MIMEType string
 type Content map[MIMEType]Media
 
@@ -60,10 +60,10 @@ type Encoding struct {
 
 // Example object MAY be extended with Specification Extensions.
 type Example struct {
-	Summary       string `json:"summary"`       // Short description for the example.
-	Desc          string `json:"description"`   // Long description for the example. CommonMark syntax MAY be used for rich text representation.
-	ExternalValue string `json:"externalValue"` // A URL that points to the literal example. This provides the capability to reference examples that cannot easily be included in JSON or YAML documents. The value field and externalValue field are mutually exclusive.
-	Value         any    `json:"value"`         // Embedded literal example. The value field and externalValue field are mutually exclusive. To represent examples of media types that cannot naturally represented in JSON or YAML, use a string value to contain the example, escaping where necessary.
+	Summary       string `json:"summary,omitempty"`       // Short description for the example.
+	Desc          string `json:"description,omitempty"`   // Long description for the example. CommonMark syntax MAY be used for rich text representation.
+	ExternalValue string `json:"externalValue,omitempty"` // A URL that points to the literal example. This provides the capability to reference examples that cannot easily be included in JSON or YAML documents. The value field and externalValue field are mutually exclusive.
+	Value         any    `json:"value"`                   // Embedded literal example. The value field and externalValue field are mutually exclusive. To represent examples of media types that cannot naturally represented in JSON or YAML, use a string value to contain the example, escaping where necessary.
 }
 
 // RequestBody describes a single request body.
