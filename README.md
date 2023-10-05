@@ -32,21 +32,4 @@ func main() {
 
 
 ### Overview 
-
-What is a Route? 
-What is a Request? 
-
-
-description on the names and systems used in this rendering of the spec. 
-
-OpenAPI -> Paths ("url/path") -> OperationMap (Method: {GET, POST, PUT}) -> Operation
-    map[path]map[method]Operation
-
-Operation: 
-  Params 
-  RequestBody
-  Responses -> StatusCode/Response 
-
-Response -> Content MIMEType/Media
-
-Media 
+ <img src="docs/chart.drawio.svg">

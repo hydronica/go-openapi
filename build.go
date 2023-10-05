@@ -373,15 +373,6 @@ func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
 	return nil
 }
 
-func (o *OpenAPI) GetRoute(path, method string) (*Route, error) {
-	_, _, err := o.PathMethod(path, Method(method))
-	if err != nil {
-		return nil, err
-	}
-
-	return nil, nil
-}
-
 // AddResponse adds response information to the api responses map which is part of the paths map
 // adds an example and schema to the response body
 func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {

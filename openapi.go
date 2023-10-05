@@ -24,7 +24,7 @@ type Operation struct {
 }
 
 // Paths holds the relative paths to the individual endpoints and their operations.
-type Paths map[string]OperationMap
+type Paths map[string]OperationMap //[url_path]OperationMap
 
 // OperationMap describes the operations available on a single path.
 type OperationMap map[Method]Operation // map of methods to a openAPI Operation object
@@ -89,10 +89,6 @@ type Schema struct {
 }
 
 type Properties map[string]Schema
-
-type Ref struct {
-	Ref string `json:"$ref"`
-}
 
 type Param struct {
 	Name     string             `json:"name,omitempty"`        // REQUIRED. The name of the parameter. Parameter names are case sensitive.
