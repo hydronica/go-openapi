@@ -90,6 +90,11 @@ type Schema struct {
 
 type Properties map[string]Schema
 
+// Param see https://swagger.io/docs/specification/describing-parameters/
+// - Path /user/{id}
+// - Query /user?role=admin
+// - header X-MyHeader: Value
+// - cookie
 type Param struct {
 	Name     string             `json:"name,omitempty"`        // REQUIRED. The name of the parameter. Parameter names are case sensitive.
 	Desc     string             `json:"description,omitempty"` // A brief description of the parameter. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.

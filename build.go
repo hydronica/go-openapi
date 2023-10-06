@@ -36,8 +36,7 @@ func New(title, version, description string) *OpenAPI {
 	}
 }
 
-// key is the reference name for the open api spec
-type Requests map[string]RequestBody
+type Requests map[string]RequestBody // key is the reference name for the open api spec
 type Params map[string]Param
 
 type RouteParam struct {
@@ -144,40 +143,12 @@ const (
 	Form    MIMEType = "multipart/form-data"
 )
 
-// Route is a simplified definition for managing routes in code
-type Route struct {
-	Tag       string
-	Desc      string
-	Content   MIMEType
-	ReqType   Type                  // the request type for the path i.e., array, object, string, integer
-	RespType  Type                  // the response type for the path i.e., array, object, string, integer
-	Responses map[string]RouteResp  // key references for responses
-	Params    map[string]RouteParam // key reference for params
-	Requests  map[string]RouteReq   // key reference for requests
-}
-
-// RouteResp is a simplified definition for the OpenApi Response to manage the responses
-type RouteResp struct {
-	Code    Code // response code (as a string) "200","400","302"
-	Content MIMEType
-	Ref     Reference // the reference name for the response object
-	Array   bool      // is the response object an array
-}
-
-type RouteReq struct {
-	Content MIMEType
-	Ref     Reference
-	Array   bool
-}
-
 type UniqueRoute struct {
 	Path   string
 	Method Method
 }
 
-type Tags []Tag
-
-func (o *OpenAPI) AddTags(t Tags) {
+func (o *OpenAPI) AddTags(t ...Tag) {
 	o.Tags = append(o.Tags, t...)
 }
 
