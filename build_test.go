@@ -10,7 +10,6 @@ import (
 )
 
 func TestBuildSchema(t *testing.T) {
-
 	type PrimitiveTypes struct {
 		F1 int    `json:"field_one"`
 		F2 string `json:"field_two"`
@@ -63,13 +62,13 @@ func TestBuildSchema(t *testing.T) {
 	}
 
 	fn := func(i input) (string, error) {
-		s, err := buildSchema("test title", "test description", true, i.i, nil)
+		s := buildSchema(i.i)
 		b, _ := json.Marshal(s)
 		b, _ = JSONRemarshal(b)
 		if i.print {
 			fmt.Println(string(b))
 		}
-		return string(b), err
+		return string(b), nil
 	}
 
 	var z *TestF = nil // a nil typed pointer to test
@@ -207,4 +206,26 @@ func TestBuildSchema(t *testing.T) {
 	}
 
 	trial.New(fn, cases).SubTest(t)
+}
+
+func TestBuilder(t *testing.T) {
+
+	type tStruct struct {
+		Name string `json:"name"`
+		Int  int    `json:"count"`
+	}
+
+	doc := New2("doc", "1.0.0", "about me")
+	doc.GetRoute("/path/v1", "GET").
+		AddResponse(
+			Response{Status: 200}.WithStruct(tStruct{
+				Name: "apple", Int: 10,
+			})).
+		AddResponse(Response{Status: 400}.WithJSONString("abcdf")).AddRequest(RequestBody{Required: false}.WithStruct(tStruct{Name: "bob", Int: 1}))
+
+	b, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(b))
 }

@@ -6,7 +6,6 @@ package openapi
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"reflect"
 	"strings"
 	"time"
@@ -311,10 +310,7 @@ func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
 	examples := make(map[string]Example)
 	var rSchema Schema
 	if len(bo.Examples) > 0 {
-		rSchema, err = buildSchema(bo.Title, bo.Desc, true, bo.Examples[0].Example, nil)
-		if err != nil {
-			log.Println("error building schema for endpoint", ur.Method, ur.Path)
-		}
+		rSchema = buildSchema(bo.Examples[0].Example)
 		for i, e := range bo.Examples {
 			if e.Name == "" {
 				e.Name = fmt.Sprintf("example: %d", i)
@@ -354,10 +350,7 @@ func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {
 	examples := make(map[string]Example)
 	var rSchema Schema
 	if len(bo.Examples) > 0 {
-		rSchema, err = buildSchema(bo.Title, bo.Desc, true, bo.Examples[0].Example, nil)
-		if err != nil {
-			return fmt.Errorf("addresp: (%s) (%s) %w", ur.Method, ur.Path, err)
-		}
+		rSchema = buildSchema(bo.Examples[0].Example)
 		for i, e := range bo.Examples {
 			if e.Name == "" {
 				e.Name = fmt.Sprintf("example: %d", i+1)
@@ -391,10 +384,10 @@ func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {
 }
 
 // BuildSchema will create a schema object based on a given example object interface
-// tags is used if there is specific formatting for a given tag map[tag_name]tag_format
-func buildSchema(title, desc string, example bool, body any, tags map[string]string) (s Schema, err error) {
+// struct tag can be used for additional info
+func buildSchema(body any) (s Schema) {
 	if body == nil {
-		return
+		return s
 	}
 
 	value := reflect.ValueOf(body)
@@ -403,20 +396,17 @@ func buildSchema(title, desc string, example bool, body any, tags map[string]str
 
 	// skip any objects that are not exported, or cannot be interfaced
 	if !value.CanInterface() {
-		return s, nil
+		return s
 	}
 
 	if kind == reflect.Pointer {
 		value = value.Elem()
 		if !value.IsValid() {
-			return s, nil
+			return s
 		}
 		typ = value.Type()
 		kind = value.Kind()
 	}
-
-	s.Title = title
-	s.Desc = desc
 
 	switch kind {
 	case reflect.Int32, reflect.Uint32:
@@ -437,7 +427,7 @@ func buildSchema(title, desc string, example bool, body any, tags map[string]str
 		s.Type = Object.String()
 		keys := value.MapKeys()
 		if len(keys) == 0 {
-			return s, nil
+			return s
 		}
 		// build out the map keys as a property schemas for openapi
 		for _, k := range keys {
@@ -447,10 +437,7 @@ func buildSchema(title, desc string, example bool, body any, tags map[string]str
 				s.Properties = make(Properties)
 			}
 
-			schema, err := buildSchema("", "", false, v.Interface(), nil)
-			if err != nil {
-				return *s.Items, fmt.Errorf("error building map dictionary schema %w", err)
-			}
+			schema := buildSchema(v.Interface())
 
 			s.Properties[field] = schema
 		}
@@ -462,14 +449,14 @@ func buildSchema(title, desc string, example bool, body any, tags map[string]str
 		case time.Time:
 			s.Type = String.String()
 			s.Format = time.RFC3339
-			if f, ok := tags["format"]; ok && f != "" {
+			/*if f, ok := tags["format"]; ok && f != "" {
 				s.Format = tags["format"]
-			}
-			return s, nil
+			}*/
+			return s
 		case Time:
 			s.Type = String.String()
 			s.Format = x.Format
-			return s, nil
+			return s
 		}
 
 		s.Type = Object.String()
@@ -478,9 +465,9 @@ func buildSchema(title, desc string, example bool, body any, tags map[string]str
 			field := typ.Field(i)
 			// these are struct tags that are used in the openapi spec
 			tags := map[string]string{
-				"json":        field.Tag.Get("json"),        // used for the field name
-				"description": field.Tag.Get("descritpion"), // used for field description
-				"format":      field.Tag.Get("format"),      // used for time string formats
+				"json":        field.Tag.Get("json"),   // used for the field name
+				"description": field.Tag.Get("desc"),   // used for field description
+				"format":      field.Tag.Get("format"), // used for time string formats
 			}
 
 			// skip any fields that are not exported
@@ -516,28 +503,25 @@ func buildSchema(title, desc string, example bool, body any, tags map[string]str
 
 			if val.IsValid() {
 				i := val.Interface()
-				prop, err = buildSchema("", "", false, i, tags)
+				prop = buildSchema(i)
 				s.Properties[varName] = prop
 			}
 		}
 
 	case reflect.Slice, reflect.Array:
-		var err error
 		prop := Schema{}
 		s.Type = Array.String()
 		if value.Len() > 0 && value.IsValid() {
 			obj := value.Index(0).Interface()
-			prop, err = buildSchema("", "", false, obj, nil)
-			if err != nil {
-				return *s.Items, fmt.Errorf("error building schema %w", err)
-			}
+			prop = buildSchema(obj)
+
 		}
 		s.Items = &prop
 	default:
 		fmt.Println("SHOULD NEVER GET HERE")
 	}
 
-	return s, nil
+	return s
 }
 
 type TypeInfo struct {

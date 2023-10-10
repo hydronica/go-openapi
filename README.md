@@ -23,7 +23,17 @@ func main() {
     
     // create doc from scratch
     doc = openapi.New("title", "v1.0.0", "all about this API") 
-    
+   
+    doc.AddRoute(
+        openapi.NewRoute("/path/v1", "GET").
+            AddResponse(
+                openapi.Resp{Code: 200, Desc:"valid response"}.WithJSONString('{"status":"ok"}'
+                ). 
+            AddRequest(
+                openapi.Req{MType: "application/json", Desc:"pull data"}.
+                    WithParams(myStruct)
+                )
+    ) 
    
    // print generated json document
    fmt.Println(string(doc.JSON()))

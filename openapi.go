@@ -39,6 +39,9 @@ type Responses map[Code]Response
 
 // Response describes a single response from an API Operation
 type Response struct {
+	Status   Code     `json:"-"`
+	MimeType MIMEType `json:"-"`
+
 	Desc    string  `json:"description,omitempty"` // A short description of the response. CommonMark syntax MAY be used for rich text representation.
 	Content Content `json:"content,omitempty"`     // A map containing descriptions of potential response payloads. The key is a media type or media type range and the value describes it.
 }
@@ -70,7 +73,7 @@ type Example struct {
 type RequestBody struct {
 	Desc     string  `json:"description,omitempty"` // A brief description of the request body. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
 	Content  Content `json:"content,omitempty"`     // REQUIRED. The content of the request body. The key is a media type or media type range and the value describes it. For requests that match multiple keys, only the most specific key is applicable. e.g. text/plain overrides text/*
-	Required *bool   `json:"required,omitempty"`    // Determines if the request body is required in the request. Defaults to false.
+	Required bool    `json:"required,omitempty"`    // Determines if the request body is required in the request. Defaults to false.
 }
 
 // Schema Object allows the definition of input and output data types
@@ -106,12 +109,12 @@ type Param struct {
 }
 
 type Info struct {
-	Title   string   `json:"title"`                   // REQUIRED. The title of the API.
-	Desc    string   `json:"description"`             // A short description of the API. CommonMark syntax MAY be used for rich text representation.
-	Terms   string   `json:"termsOfService"`          // A URL to the Terms of Service for the API. MUST be in the format of a URL.
-	Contact *Contact `json:"contact,omitempty"`       // The contact information for the exposed API.
-	License *License `json:"license,omitempty"`       // The license information for the exposed API.
-	Version string   `json:"version" required:"true"` // REQUIRED. The version of the OpenAPI document (which is distinct from the OpenAPI Specification version or the API implementation version).
+	Title   string   `json:"title"`                    // REQUIRED. The title of the API.
+	Desc    string   `json:"description"`              // A short description of the API. CommonMark syntax MAY be used for rich text representation.
+	Terms   string   `json:"termsOfService,omitempty"` // A URL to the Terms of Service for the API. MUST be in the format of a URL.
+	Contact *Contact `json:"contact,omitempty"`        // The contact information for the exposed API.
+	License *License `json:"license,omitempty"`        // The license information for the exposed API.
+	Version string   `json:"version" required:"true"`  // REQUIRED. The version of the OpenAPI document (which is distinct from the OpenAPI Specification version or the API implementation version).
 }
 
 type Contact struct {
@@ -119,6 +122,7 @@ type Contact struct {
 	URL   string `json:"url"`   // The URL pointing to the contact information. MUST be in the format of a URL.
 	Email string `json:"email"` // The email address of the contact person/organization. MUST be in the format of an email address.
 }
+
 type License struct {
 	Name string `json:"name"` // REQUIRED. The license name used for the API.
 	URL  string `json:"url"`  // A URL to the license used for the API. MUST be in the format of a URL.
@@ -143,6 +147,6 @@ type Tag struct {
 }
 
 type ExternalDocs struct {
-	Desc string `json:"description"`         // A short description of the target documentation. CommonMark syntax MAY be used for rich text representation.
-	URL  string `json:"url" required:"true"` // REQUIRED. The URL for the target documentation. Value MUST be in the format of a URL.
+	Desc string `json:"description,omitempty""`        // A short description of the target documentation. CommonMark syntax MAY be used for rich text representation.
+	URL  string `json:"url,omitempty" required:"true"` // REQUIRED. The URL for the target documentation. Value MUST be in the format of a URL.
 }
