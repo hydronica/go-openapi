@@ -1,5 +1,9 @@
 package openapi
 
+import (
+	"strconv"
+)
+
 // OpenAPI represents the definition of the openapi specification 3.0.3
 type OpenAPI struct {
 	Version string   `json:"openapi"`           // the  semantic version number of the OpenAPI Specification version
@@ -29,8 +33,28 @@ type Paths map[string]OperationMap //[url_path]OperationMap
 // OperationMap describes the operations available on a single path.
 type OperationMap map[Method]Operation // map of methods to a openAPI Operation object
 
-// Any HTTP status code, '200', '201', '400' the value of 'default' can be used to cover all responses not defined
+// Code a valid https status such as '200', '201', '400', 'default'
 type Code int
+
+const DefaultStatus Code = 0
+
+func (c Code) MarshalText() ([]byte, error) {
+	if c == DefaultStatus {
+		return []byte("default"), nil
+	}
+	return []byte(strconv.Itoa(int(c))), nil
+}
+
+func (c *Code) UnmarshalText(b []byte) error {
+	if string(b) == "default" {
+		*c = DefaultStatus
+		return nil
+	}
+	i, err := strconv.Atoi(string(b))
+	*c = Code(i)
+	return err
+}
+
 type MIMEType string
 type Content map[MIMEType]Media
 
@@ -110,11 +134,11 @@ type Param struct {
 
 type Info struct {
 	Title   string   `json:"title"`                    // REQUIRED. The title of the API.
+	Version string   `json:"version" required:"true"`  // REQUIRED. The version of the OpenAPI document (which is distinct from the OpenAPI Specification version or the API implementation version).
 	Desc    string   `json:"description"`              // A short description of the API. CommonMark syntax MAY be used for rich text representation.
 	Terms   string   `json:"termsOfService,omitempty"` // A URL to the Terms of Service for the API. MUST be in the format of a URL.
 	Contact *Contact `json:"contact,omitempty"`        // The contact information for the exposed API.
 	License *License `json:"license,omitempty"`        // The license information for the exposed API.
-	Version string   `json:"version" required:"true"`  // REQUIRED. The version of the OpenAPI document (which is distinct from the OpenAPI Specification version or the API implementation version).
 }
 
 type Contact struct {

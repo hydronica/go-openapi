@@ -151,15 +151,8 @@ func (o *OpenAPI) AddTags(t ...Tag) {
 	o.Tags = append(o.Tags, t...)
 }
 
-func (o *OpenAPI) AddTag(tag, description string) {
-	o.Tags = append(o.Tags, Tag{
-		Name: tag,
-		Desc: description,
-	})
-}
-
-// AddRoute will add a new route to the paths object for the openapi spec
-// A unique route is need to add params, responses, and request objects
+// AddRoute will add a new Route to the paths object for the openapi spec
+// A unique Route is need to add params, responses, and request objects
 func (o *OpenAPI) AddRoute(path, method, tag, desc, summary string) (ur UniqueRoute, err error) {
 	if tag == "" {
 		tag = Default
@@ -231,7 +224,7 @@ func NewReqBody(mtype MIMEType, desc string, examples []ExampleObject) BodyObjec
 	}
 }
 
-// AddParam adds a param object to the given unique route
+// AddParam adds a param object to the given unique Route
 func (o *OpenAPI) AddParam(ur UniqueRoute, rp RouteParam) error {
 	if rp.Name == "" || rp.Location == "" {
 		return fmt.Errorf("param name and location are required to add param")
@@ -299,7 +292,7 @@ func (o *OpenAPI) PathMethod(path string, method Method) (om OperationMap, op Op
 	return om, op, nil
 }
 
-// AddRequest will add a request object for the unique route in the openapi receiver
+// AddRequest will add a request object for the unique Route in the openapi receiver
 // adds an example and schema to the request body
 func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
 	om, op, err := o.PathMethod(ur.Path, ur.Method)
@@ -544,5 +537,5 @@ func JSONRemarshal(bytes []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(ifce)
+	return json.MarshalIndent(ifce, "", "    ")
 }

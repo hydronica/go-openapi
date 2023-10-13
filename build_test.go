@@ -1,12 +1,13 @@
 package openapi
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
+	"github.com/hydronica/trial"
+	"os"
 	"testing"
 	"time"
-
-	"github.com/hydronica/trial"
 )
 
 func TestBuildSchema(t *testing.T) {
@@ -228,4 +229,37 @@ func TestBuilder(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(string(b))
+}
+
+//go:embed swagger.example.json
+var jsonfile string
+
+func TestNewFromJson2(t *testing.T) {
+	doc, err := NewFromJson2(jsonfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := doc.JSON()
+	f, err := os.Create("./gen2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Write([]byte(s))
+	f.Close()
+}
+
+func TestNewFromJson(t *testing.T) {
+	doc, err := NewFromJson(jsonfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s := doc.JSON()
+	f, err := os.Create("./gen.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Write([]byte(s))
+	f.Close()
 }

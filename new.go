@@ -3,6 +3,7 @@ package openapi
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"strings"
 )
@@ -21,44 +22,72 @@ func New2(title, version, description string) *OpenAPI2 {
 	}
 }
 
+func NewFromJson2(spec string) (api *OpenAPI2, err error) {
+	api = &OpenAPI2{
+		Routes: make(router),
+	}
+	err = json.Unmarshal([]byte(spec), &api)
+	if err != nil {
+		return nil, fmt.Errorf("error with unmarshal %w", err)
+	}
+	return api, nil
+}
+
 // OpenAPI2 represents the definition of the openapi specification 3.0.3
 type OpenAPI2 struct {
 	Version      string        `json:"openapi"`                // the  semantic version number of the OpenAPI Specification version
-	Tags         []Tag         `json:"tags,omitempty"`         // A list of tags used by the specification with additional metadata
 	Servers      []Server      `json:"servers,omitempty"`      // Array of Server Objects, which provide connectivity information to a target server.
-	Routes       router        `json:"paths"`                  // key= path|method
 	Info         Info          `json:"info"`                   // REQUIRED. Provides metadata about the API. The metadata MAY be used by tooling as required.
+	Tags         []Tag         `json:"tags,omitempty"`         // A list of tags used by the specification with additional metadata
+	Routes       router        `json:"paths"`                  // key= path|method
 	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"` //Additional external documentation.
 }
 
-type router map[string]*route
+type router map[string]*Route
 
 func (r router) MarshalJSON() ([]byte, error) {
-	data := make(map[string]map[string]*route)
+	data := make(map[string]map[string]*Route)
 	for k, v := range r {
 		s := strings.Split(k, "|")
-		method := map[string]*route{s[1]: v}
+		method := map[string]*Route{s[1]: v}
 		data[s[0]] = method
 	}
 
 	return json.Marshal(data)
 }
 
+func (r router) UnmarshalJSON(b []byte) error {
+	data := make(map[string]map[string]*Route)
+	if err := json.Unmarshal(b, &data); err != nil {
+		return err
+	}
+	for k1, v := range data {
+		for k2, rt := range v {
+
+			key := k1 + "|" + k2
+			rt.path = k1
+			rt.method = k2
+			r[key] = rt
+		}
+	}
+	return nil
+}
+
 func (o *OpenAPI2) JSON() string {
-	b, err := json.Marshal(o)
+	b, err := json.MarshalIndent(o, "", "    ")
 	if err != nil {
 		log.Println(err)
 	}
 	return string(b)
 }
 
-func (o *OpenAPI2) AddRoute(r *route) error {
+func (o *OpenAPI2) AddRoute(r *Route) error {
 	if r.path == "" || r.method == "" {
 		return errors.New("path or method cannot be empty")
 	}
 	key := r.path + "|" + r.method
 	if _, found := o.Routes[key]; found {
-		return errors.New("route already found use GetRoute to make changes")
+		return errors.New("Route already found use GetRoute to make changes")
 	}
 
 	o.Routes[key] = r
@@ -66,31 +95,40 @@ func (o *OpenAPI2) AddRoute(r *route) error {
 }
 
 // Route is a simplified definition for managing routes in code
-type route struct {
+type Route struct {
 	// internal reference
 	path   string
 	method string
 
-	Tag       string            `json:"tag,omitempty"`
+	Tag       []string          `json:"tags,omitempty"`
 	Summary   string            `json:"summary,omitempty"`
 	Responses map[Code]Response `json:"responses,omitempty"` // [status_code]Response
 	//Params    map[string]RouteParam // key reference for params
-	Requests *RequestBody // key reference for requests
+	Requests *RequestBody `json:"requests,omitempty"` // key reference for requests
+
+	/* NOT CURRENTLY SUPPORT VALUES
+	// operationId is an optional unique string used to identify an operation
+	OperationID string  json:"operationId,omitempty"`
+	//A detailed description of the operation. Use markdown for rich text representation
+	Desc         string        `json:"description,omitempty"`
+
+	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"`
+	*/
 }
 
-func (r *route) WithDetails(tag, summary string) *route {
-	r.Tag = tag
+func (r *Route) WithDetails(tag, summary string) *Route {
+	r.Tag = []string{tag}
 	r.Summary = summary
 	return r
 }
 
 // GetRoute associated with the path and method.
-// create a new route if route was not found.
-func (o *OpenAPI2) GetRoute(path, method string) *route {
+// create a new Route if Route was not found.
+func (o *OpenAPI2) GetRoute(path, method string) *Route {
 	key := path + "|" + method
 	r, found := o.Routes[key]
 	if !found {
-		r = &route{path: path, method: method}
+		r = &Route{path: path, method: method}
 		o.Routes[key] = r
 	}
 	return r
@@ -129,7 +167,7 @@ func (r Response) WithStruct(i any) Response {
 
 }
 
-func (r *route) AddResponse(resp Response) *route {
+func (r *Route) AddResponse(resp Response) *Route {
 	if r.Responses == nil {
 		r.Responses = make(map[Code]Response)
 	}
@@ -164,7 +202,23 @@ func (r RequestBody) WithStruct(i any) RequestBody {
 	}
 }
 
-func (r *route) AddRequest(req RequestBody) *route {
+func (r *Route) AddRequest(req RequestBody) *Route {
 	r.Requests = &req
+	return r
+}
+
+func (r *Route) AddQueryParam() *Route {
+	return r
+}
+
+func (r *Route) AddHeaderParam() *Route {
+	return r
+}
+
+func (r *Route) AddPathParam() *Route {
+	return r
+}
+
+func (r *Route) AddCookieParam() *Route {
 	return r
 }

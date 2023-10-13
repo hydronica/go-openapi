@@ -19,9 +19,9 @@
         }
     ],
     "info": {
-        "description": "API Endpoints",
-        "version": "1.0.0",
         "title": "API",
+        "version": "1.0.0",
+        "description": "API Endpoints",
         "license": {
             "name": "",
             "url": ""
