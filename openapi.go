@@ -103,19 +103,19 @@ type RequestBody struct {
 // Schema Object allows the definition of input and output data types
 // These types can be objects, but also primitives and arrays
 // This object is an extended subset of the JSON Schema Specification
-type Schema struct {
-	AddProperties *Schema       `json:"additionalProperties,omitempty"` // To define a dictionary, use type: object and use the additionalProperties keyword to specify the type of values in key/value pairs.
+type SchemaOld struct {
+	AddProperties *SchemaOld    `json:"additionalProperties,omitempty"` // To define a dictionary, use type: object and use the additionalProperties keyword to specify the type of values in key/value pairs.
 	Title         string        `json:"title,omitempty"`                // Title?
 	Desc          string        `json:"description,omitempty"`          // CommonMark syntax MAY be used for rich text representation.
 	Type          string        `json:"type,omitempty"`                 // Value MUST be a string. Multiple types via an array are not supported.
 	Format        string        `json:"format,omitempty"`               // See Data Type Formats for further details. While relying on JSON Schema's defined formats, the OAS offers a few additional predefined formats.
-	Items         *Schema       `json:"items,omitempty"`                // Value MUST be an object and not an array. Inline or referenced schema MUST be of a Schema Object and not a standard JSON Schema. items MUST be present if the type is array.
+	Items         *SchemaOld    `json:"items,omitempty"`                // Value MUST be an object and not an array. Inline or referenced schema MUST be of a Schema Object and not a standard JSON Schema. items MUST be present if the type is array.
 	Properties    Properties    `json:"properties,omitempty"`           // Property definitions MUST be a Schema Object and not a standard JSON Schema (inline or referenced).
 	Example       any           `json:"example,omitempty"`              // A free-form property to include an example of an instance for this schema. To represent examples that cannot be naturally represented in JSON or YAML, a string value can be used to contain the example with escaping where necessary.
 	ExternalDocs  *ExternalDocs `json:"externalDocs,omitempty"`         // Additional external documentation for this schema.
 }
 
-type Properties map[string]Schema
+type Properties map[string]Prop
 
 // Param see https://swagger.io/docs/specification/describing-parameters/
 // - Path /user/{id}

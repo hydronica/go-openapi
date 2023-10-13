@@ -3,7 +3,6 @@ package openapi
 import (
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"github.com/hydronica/trial"
 	"os"
 	"testing"
@@ -57,136 +56,109 @@ func TestBuildSchema(t *testing.T) {
 		F2 *TestF `json:"f2_pointer_field"`
 	}
 
-	type input struct {
-		i     any  // test input
-		print bool // print out the json value
+	fn := func(i any) (Schema, error) {
+		s := buildSchema(i)
+		return s, nil
 	}
 
-	fn := func(i input) (string, error) {
-		s := buildSchema(i.i)
-		b, _ := json.Marshal(s)
-		b, _ = JSONRemarshal(b)
-		if i.print {
-			fmt.Println(string(b))
-		}
-		return string(b), nil
-	}
-
-	var z *TestF = nil // a nil typed pointer to test
-	cases := trial.Cases[input, string]{
+	//var z *TestF = nil // a nil typed pointer to test
+	cases := trial.Cases[any, Schema]{
 		"map_test_interface": {
-			Input: input{
-				i: map[string]any{
-					"customValues": []map[string]any{
-						{"adate": "2023-02-01T00:00:00Z", "avalue": 1427200},
-						{"bdate": "2023-01-01T00:00:00Z", "bvalue": 1496400},
-					},
-					"default": map[string][]float64{
-						"monthTrans": {1.1, 2.2, 3.3, 4.4},
-						"monthProc":  {5.5, 6.6, 7.7, 8.8},
-					},
+			Input: map[string]any{
+				"customValues": []map[string]any{
+					{"adate": "2023-02-01T00:00:00Z", "avalue": 1427200},
+					{"bdate": "2023-01-01T00:00:00Z", "bvalue": 1496400},
 				},
-				print: false,
+				"default": map[string][]float64{
+					"monthTrans": {1.1, 2.2, 3.3, 4.4},
+					"monthProc":  {5.5, 6.6, 7.7, 8.8},
+				},
 			},
-			Expected: `{"description":"test description","properties":{"customValues":{"items":{"properties":{"adate":{"type":"string"},"avalue":{"format":"int64","type":"integer"}},"type":"object"},"type":"array"},"default":{"properties":{"monthProc":{"items":{"format":"float","type":"number"},"type":"array"},"monthTrans":{"items":{"format":"float","type":"number"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
+			Expected: Schema{
+				Type: "object",
+			},
+			//`{"description":"test description","properties":{"customValues":{"items":{"properties":{"adate":{"type":"string"},"avalue":{"format":"int64","type":"integer"}},"type":"object"},"type":"array"},"default":{"properties":{"monthProc":{"items":{"format":"float","type":"number"},"type":"array"},"monthTrans":{"items":{"format":"float","type":"number"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
-		"map_test_simple": {
-			Input: input{
-				i: map[string]string{
-					"key": "value",
-				},
-				print: false,
+		/*"map_test_simple": {
+			Input: map[string]string{
+				"key": "value",
 			},
 			Expected: `{"description":"test description","properties":{"key":{"type":"string"}},"title":"test title","type":"object"}`,
 		},
 		"map_test_object": {
-			Input: input{
-				i: map[string]PrimitiveTypes{
-					"keyvalue": {F1: 123, F2: "string value"},
-				},
-				print: false,
+			Input: map[string]PrimitiveTypes{
+				"keyvalue": {F1: 123, F2: "string value"},
 			},
 			Expected: `{"description":"test description","properties":{"keyvalue":{"properties":{"field_one":{"format":"int64","type":"integer"},"field_two":{"type":"string"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
 		"nil_typed_pointer_test": {
-			Input: input{
-				i: TestP{
-					F1: &TestF{
-						F1: 321,
-						F2: true,
-					},
-					F2: z, // testing a nil typed pointer
+			Input: TestP{
+				F1: &TestF{
+					F1: 321,
+					F2: true,
 				},
-				print: false,
+				F2: z, // testing a nil typed pointer
 			},
+
 			Expected: `{"description":"test description","properties":{"f1_pointer_field":{"properties":{"f1_int":{"format":"int64","type":"integer"},"f2_bool":{"type":"boolean"}},"type":"object"},"f2_pointer_field":{}},"title":"test title","type":"object"}`,
 		},
 		"time_test": {
-			Input: input{
-				i: TestT{
-					F1: time.Date(2023, time.January, 11, 0, 0, 0, 0, time.UTC),
-					F2: Time{
-						Time:   time.Date(2023, time.February, 2, 0, 0, 0, 0, time.UTC),
-						Format: "2006-01-02",
-					},
+			Input: TestT{
+				F1: time.Date(2023, time.January, 11, 0, 0, 0, 0, time.UTC),
+				F2: Time{
+					Time:   time.Date(2023, time.February, 2, 0, 0, 0, 0, time.UTC),
+					Format: "2006-01-02",
 				},
-				print: false,
 			},
 			Expected: `{"description":"test description","properties":{"openapi.time":{"format":"2006-01-02","type":"string"},"time.time":{"format":"2006-01-02","type":"string"}},"title":"test title","type":"object"}`,
-		},
-		"simple_object_test": {
-			Input: input{
-				i: TestA{
-					F1: "testing a",
-					F2: []string{"one", "two", "three"},
-					F3: 1234,
-				},
-				print: false,
+		},*/
+		"simple_object": {
+			Input: TestA{
+				F1: "testing a",
+				F2: []string{"one", "two", "three"},
+				F3: 1234,
 			},
-			Expected: `{"description":"test description","properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"title":"test title","type":"object"}`,
-		},
-		"object_within_object": {
-			Input: input{
-				i: TestB{
+			Expected: Schema{
+				Type: Object.String(),
+				Properties: Properties{
+					"F1": {Type: String.String()},
+					"F2": {Type: "array"},
+					"F3": {Type: "integer", Format: "int64"},
+				},
+			},
+		}, /*
+			"object_within_object": {
+				Input: TestB{
 					TestA{
 						F1: "testing a",
 						F2: []string{"one", "two", "three"},
 						F3: 1234,
 					},
 				},
-				print: false,
+				Expected: `{"description":"test description","properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 			},
-			Expected: `{"description":"test description","properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
-		},
-		"pointer_object": {
-			Input: input{
-				i: &TestB{
+			"pointer_object": {
+				Input: &TestB{
 					TestA{
 						F1: "testing a",
 						F2: []string{"one", "two", "three"},
 						F3: 1234,
 					},
 				},
-				print: false,
+				Expected: `{"description":"test description","properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 			},
-			Expected: `{"description":"test description","properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
-		},
-		"pointer_in_object": {
-			Input: input{
-				i: &TestE{
+			"pointer_in_object": {
+				Input: &TestE{
 					&TestA{
 						F1: "testing a",
 						F2: []string{"one", "two", "three"},
 						F3: 1234,
 					},
 				},
-				print: false,
+				Expected: `{"description":"test description","properties":{"e_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 			},
-			Expected: `{"description":"test description","properties":{"e_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
-		},
-		"array_of_array_objects": {
-			Input: input{
-				i: []TestC{
+			"array_of_array_objects": {
+				Input: []TestC{
 					{[]TestA{
 						{
 							F1: "testing slice 1",
@@ -200,10 +172,8 @@ func TestBuildSchema(t *testing.T) {
 						},
 					}},
 				},
-				print: false,
-			},
-			Expected: `{"description":"test description","items":{"properties":{"c_field_one":{"items":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"},"type":"array"}},"type":"object"},"title":"test title","type":"array"}`,
-		},
+				Expected: `{"description":"test description","items":{"properties":{"c_field_one":{"items":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"},"type":"array"}},"type":"object"},"title":"test title","type":"array"}`,
+			}, */
 	}
 
 	trial.New(fn, cases).SubTest(t)

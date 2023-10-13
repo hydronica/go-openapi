@@ -35,12 +35,38 @@ func NewFromJson2(spec string) (api *OpenAPI2, err error) {
 
 // OpenAPI2 represents the definition of the openapi specification 3.0.3
 type OpenAPI2 struct {
-	Version      string        `json:"openapi"`                // the  semantic version number of the OpenAPI Specification version
-	Servers      []Server      `json:"servers,omitempty"`      // Array of Server Objects, which provide connectivity information to a target server.
-	Info         Info          `json:"info"`                   // REQUIRED. Provides metadata about the API. The metadata MAY be used by tooling as required.
-	Tags         []Tag         `json:"tags,omitempty"`         // A list of tags used by the specification with additional metadata
-	Routes       router        `json:"paths"`                  // key= path|method
+	Version string   `json:"openapi"`           // the  semantic version number of the OpenAPI Specification version
+	Servers []Server `json:"servers,omitempty"` // Array of Server Objects, which provide connectivity information to a target server.
+	Info    Info     `json:"info"`              // REQUIRED. Provides metadata about the API. The metadata MAY be used by tooling as required.
+	Tags    []Tag    `json:"tags,omitempty"`    // A list of tags used by the specification with additional metadata
+	Routes  router   `json:"paths"`             // key= path|method
+	//Components   Components    `json:"components,omitempty"`   // reuseable components not used here
 	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"` //Additional external documentation.
+}
+
+type Schema struct {
+	Title string `json:"title,omitempty"`
+	Desc  string `json:"description,omitempty"` // CommonMark syntax MAY be used for rich text representation.
+	// todo: can Type and Format be converted with an embedded prop?
+	Type   string `json:"type,omitempty"`   // Value MUST be a string. Multiple types via an array are not supported.
+	Format string `json:"format,omitempty"` // See Data Type Formats for further details. While relying on JSON Schema's defined formats, the OAS offers a few additional predefined formats.
+	//Items         *Schema       `json:"items,omitempty"`                // Value MUST be an object and not an array. Inline or referenced schema MUST be of a Schema Object and not a standard JSON Schema. items MUST be present if the type is array.
+	Properties Properties `json:"properties,omitempty"` // Property definitions MUST be a Schema Object and not a standard JSON Schema (inline or referenced).
+	//Example       any           `json:"example,omitempty"`              // A free-form property to include an example of an instance for this schema. To represent examples that cannot be naturally represented in JSON or YAML, a string value can be used to contain the example with escaping where necessary.
+	//ExternalDocs  *ExternalDocs `json:"externalDocs,omitempty"`         // Additional external documentation for this schema.
+}
+
+type Prop struct {
+	Type   string `json:"type,omitempty"`
+	Format string `json:"format,omitempty"`
+	Desc   string `json:"description,omitempty"`
+
+	// Enum []string
+	// Default any
+	// Pattern string
+	// Example any
+	// Items []Item //todo to be defined
+	// Ref string json:"$ref,omitempty" // link to object, #/components/schemas/{object}
 }
 
 type router map[string]*Route

@@ -255,8 +255,8 @@ func (o *OpenAPI) AddParam(ur UniqueRoute, rp RouteParam) error {
 		}
 	} else {
 		param.Schema = &Schema{
-			Type:   rp.Type.String(),
-			Format: rp.Format.String(),
+			Type: rp.Type.String(),
+			//Format: rp.Format.String(),
 		}
 	}
 
@@ -387,35 +387,17 @@ func buildSchema(body any) (s Schema) {
 	typ := reflect.TypeOf(body)
 	kind := typ.Kind()
 
-	// skip any objects that are not exported, or cannot be interfaced
-	if !value.CanInterface() {
-		return s
-	}
-
-	if kind == reflect.Pointer {
-		value = value.Elem()
-		if !value.IsValid() {
-			return s
-		}
-		typ = value.Type()
-		kind = value.Kind()
-	}
+	/* todo: support
+	   if kind == reflect.Pointer {
+	   		value = value.Elem()
+	   		if !value.IsValid() {
+	   			return s
+	   		}
+	   		typ = value.Type()
+	   		kind = value.Kind()
+	   	} */
 
 	switch kind {
-	case reflect.Int32, reflect.Uint32:
-		s.Type = Integer.String()
-		s.Format = Int32.String()
-	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64:
-		s.Type = Integer.String()
-		s.Format = Int64.String()
-	case reflect.Float32, reflect.Float64:
-		s.Type = Number.String()
-		s.Format = Float.String()
-	case reflect.Bool:
-		s.Type = Boolean.String()
-	case reflect.String:
-		s.Type = String.String()
-
 	case reflect.Map:
 		s.Type = Object.String()
 		keys := value.MapKeys()
@@ -423,6 +405,7 @@ func buildSchema(body any) (s Schema) {
 			return s
 		}
 		// build out the map keys as a property schemas for openapi
+		/* todo: move to a seperate map method?
 		for _, k := range keys {
 			v := value.MapIndex(k)
 			field := k.String()
@@ -433,7 +416,7 @@ func buildSchema(body any) (s Schema) {
 			schema := buildSchema(v.Interface())
 
 			s.Properties[field] = schema
-		}
+		} */
 
 	case reflect.Struct:
 		// these are special cases for time strings
@@ -454,54 +437,43 @@ func buildSchema(body any) (s Schema) {
 
 		s.Type = Object.String()
 		numFields := typ.NumField()
+		if s.Properties == nil {
+			s.Properties = make(Properties)
+		}
 		for i := 0; i < numFields; i++ {
 			field := typ.Field(i)
 			// these are struct tags that are used in the openapi spec
-			tags := map[string]string{
-				"json":        field.Tag.Get("json"),   // used for the field name
-				"description": field.Tag.Get("desc"),   // used for field description
-				"format":      field.Tag.Get("format"), // used for time string formats
-			}
+
+			jsonTag := strings.Replace(field.Tag.Get("json"), ",omitempty", "", 1)
+			desc := field.Tag.Get("desc")
+			//format := field.Tag.Get("format") // used for time string formats
 
 			// skip any fields that are not exported
-			if !value.Field(i).CanInterface() {
+			if !value.Field(i).CanInterface() || jsonTag == "-" {
 				continue
 			}
 			// val is the reflect.value of the struct field
 			val := value.Field(i)
 			// the name of the struct field
 			varName := field.Name
-			// the json tag string value
-			// in go the json tag - is a skipped field (not output to json)
-			if tags["json"] == "-" {
-				continue
-			}
-			if tags["json"] != "" {
-				// ,omitempty is a go json template option to ignore the field if it has a zero value
-				varName = strings.Replace(tags["json"], ",omitempty", "", 1)
-			}
+
 			fieldType := typ.Field(i).Type.Kind()
 
+			// todo do we need this pointer logic?
 			if fieldType == reflect.Pointer {
 				// get the value of the pointer
 				va := reflect.ValueOf(val.Interface()).Elem()
 				fieldType = va.Kind()
 			}
 
-			if s.Properties == nil {
-				s.Properties = make(Properties)
-			}
-			prop := s.Properties[varName]
-			prop.Desc = tags["description"]
+			prop := buildProp(val.Interface())
+			prop.Desc = desc
+			s.Properties[varName] = prop
 
-			if val.IsValid() {
-				i := val.Interface()
-				prop = buildSchema(i)
-				s.Properties[varName] = prop
-			}
 		}
 
 	case reflect.Slice, reflect.Array:
+	/*	todo: to implement
 		prop := Schema{}
 		s.Type = Array.String()
 		if value.Len() > 0 && value.IsValid() {
@@ -509,12 +481,33 @@ func buildSchema(body any) (s Schema) {
 			prop = buildSchema(obj)
 
 		}
-		s.Items = &prop
+		s.Items = &prop */
 	default:
-		fmt.Println("SHOULD NEVER GET HERE")
+		p := buildProp(body)
+		s.Type = p.Type
+		s.Format = p.Format
 	}
 
 	return s
+}
+
+// buildProp take a primitive type and stores that in a prop
+func buildProp(value any) Prop {
+	kind := reflect.TypeOf(value).Kind()
+	switch kind {
+	case reflect.Int32, reflect.Uint32:
+		return Prop{Type: Integer.String(), Format: Int32.String()}
+	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64:
+		return Prop{Type: Integer.String(), Format: Int64.String()}
+	case reflect.Float32, reflect.Float64:
+		return Prop{Type: Number.String(), Format: Float.String()}
+	case reflect.Bool:
+		return Prop{Type: Boolean.String()}
+	case reflect.String:
+		return Prop{Type: String.String()}
+	default:
+		return Prop{Type: "invalid", Format: kind.String()}
+	}
 }
 
 type TypeInfo struct {
@@ -537,5 +530,5 @@ func JSONRemarshal(bytes []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return json.MarshalIndent(ifce, "", "    ")
+	return json.Marshal(ifce)
 }
