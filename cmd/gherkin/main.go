@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -55,7 +54,7 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	// Create openAPI/Swagger doc
-	var doc *openapi.OpenAPI
+	var doc *openapi.OpenAPI2
 	if c.Base != "" {
 		f, err := os.Open(c.Base)
 		if err != nil {
@@ -66,12 +65,12 @@ func main() {
 			log.Fatalf("error reading base file %q: %v", c.Base, err)
 		}
 
-		doc, err = openapi.NewFromJson(string(b))
+		doc, err = openapi.NewFromJson2(string(b))
 		if err != nil {
 
 		}
 	} else {
-		doc = openapi.New(c.Title, c.Version, c.Description)
+		doc = openapi.New2(c.Title, c.Version, c.Description)
 	}
 
 	//read and process gherkin files
@@ -98,26 +97,28 @@ func main() {
 	for k, examples := range tests {
 		s := strings.Split(k, "|")
 		path, method := s[0], s[1]
-		route, _ := doc.AddRoute(path, method, "", "", "")
-		reqExamples := make([]openapi.ExampleObject, 0)
+		route := doc.GetRoute(path, method)
+		req := openapi.RequestBody{}
+		resp := make(openapi.Responses)
 		for _, ex := range examples {
 
+			r := resp[openapi.Code(ex.Status)]
+			r.Status = openapi.Code(ex.Status)
+			r.Desc = ex.Description
+
 			if ex.ReqBody != "" {
-				reqExamples = append(reqExamples, openapi.ExampleObject{
-					Name:    ex.Name,
-					Desc:    ex.Description,
-					Example: rawJSON(ex.ReqBody),
-				})
+				req.WithJSONString(ex.ReqBody)
 			}
-			respExamples := []openapi.ExampleObject{}
+
 			if ex.RespBody != "" {
-				respExamples = append(respExamples, openapi.ExampleObject{Example: rawJSON(ex.RespBody)})
-
+				r.WithJSONString(ex.RespBody)
 			}
-			doc.AddResponse(route, openapi.NewRespBody("application/json", openapi.Code(ex.Status), "", respExamples))
+			resp[openapi.Code(ex.Status)] = r
 		}
-		doc.AddRequest(route, openapi.NewReqBody("application/json", "", reqExamples))
-
+		route.AddRequest(req)
+		for _, r := range resp {
+			route.AddResponse(r)
+		}
 	}
 
 	// generate the output swagger doc
@@ -125,7 +126,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("issue with writing %q: %w", c.Out, err)
 	}
-	f.Write(doc.JSON())
+	f.Write([]byte(doc.JSON()))
 }
 
 var counter int
@@ -133,18 +134,6 @@ var counter int
 func newID() string {
 	counter += 1
 	return "UUID" + strconv.Itoa(counter)
-}
-
-type test struct {
-	Name        string
-	Header      map[string]string
-	Description string
-	Method      string // POST/GET
-	Path        string
-	Body        string
-
-	StatusCode string
-	RespBody   string
 }
 
 var regURL = regexp.MustCompile(".*(POST|GET|PUT|DELETE).*\\\"(.*)\\\"")
@@ -283,14 +272,4 @@ type Example struct {
 
 	Status   int
 	RespBody string
-}
-
-func rawJSON(data string) map[string]any {
-	m := make(map[string]any)
-	err := json.Unmarshal([]byte(data), &m)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return m
 }

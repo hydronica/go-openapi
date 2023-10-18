@@ -71,10 +71,15 @@ type Response struct {
 }
 
 type Media struct {
-	Schema   Schema              `json:"schema,omitempty"`   // The schema defining the content of the request, response, or parameter.
-	Example  any                 `json:"example,omitempty"`  // Example of the media type. The example object SHOULD be in the correct format as specified by the media type. The example field is mutually exclusive of the examples field. Furthermore, if referencing a schema which contains an example, the example value SHALL override the example provided by the schema.
-	Examples map[string]Example  `json:"examples,omitempty"` // Examples of the media type. Each example object SHOULD match the media type and specified schema if present. The examples field is mutually exclusive of the example field. Furthermore, if referencing a schema which contains an example, the examples value SHALL override the example provided by the schema.
-	Encoding map[string]Encoding `json:"encoding,omitempty"` // A map between a property name and its encoding information. The key, being the property name, MUST exist in the schema as a property.
+	Schema Schema `json:"schema,omitempty"` // The schema defining the content of the request, response, or parameter.
+	// Examples of the media type. Each example object SHOULD match the media type and specified schema if present. The examples field is mutually exclusive of the example field. Furthermore, if referencing a schema which contains an example, the examples value SHALL override the example provided by the schema.
+	Examples map[string]Example `json:"examples,omitempty"`
+
+	// NOT Supported:
+	//Example of the media type. The example object SHOULD be in the correct format as specified by the media type. The example field is mutually exclusive of the examples field. Furthermore, if referencing a schema which contains an example, the example value SHALL override the example provided by the schema.
+	//Example  any                 `json:"example,omitempty"` -> uses examples even for one example
+	//A map between a property name and its encoding information. The key, being the property name, MUST exist in the schema as a property.
+	//Encoding map[string]Encoding `json:"encoding,omitempty"`
 }
 
 type Encoding struct {
@@ -87,10 +92,10 @@ type Encoding struct {
 
 // Example object MAY be extended with Specification Extensions.
 type Example struct {
-	Summary       string `json:"summary,omitempty"`       // Short description for the example.
-	Desc          string `json:"description,omitempty"`   // Long description for the example. CommonMark syntax MAY be used for rich text representation.
-	ExternalValue string `json:"externalValue,omitempty"` // A URL that points to the literal example. This provides the capability to reference examples that cannot easily be included in JSON or YAML documents. The value field and externalValue field are mutually exclusive.
-	Value         any    `json:"value"`                   // Embedded literal example. The value field and externalValue field are mutually exclusive. To represent examples of media types that cannot naturally represented in JSON or YAML, use a string value to contain the example, escaping where necessary.
+	Summary string `json:"summary,omitempty"`     // Short description for the example.
+	Desc    string `json:"description,omitempty"` // Long description for the example. CommonMark syntax MAY be used for rich text representation.
+	//ExternalValue string `json:"externalValue,omitempty"` // A URL that points to the literal example. This provides the capability to reference examples that cannot easily be included in JSON or YAML documents. The value field and externalValue field are mutually exclusive.
+	Value any `json:"value"` // Embedded literal example. The value field and externalValue field are mutually exclusive. To represent examples of media types that cannot naturally represented in JSON or YAML, use a string value to contain the example, escaping where necessary.
 }
 
 // RequestBody describes a single request body.

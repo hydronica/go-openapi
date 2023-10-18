@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 )
 
@@ -164,7 +165,7 @@ func (r Response) WithJSONString(s string) Response {
 			Status:   r.Status,
 			MimeType: "invalid/json",
 			Desc:     err.Error(),
-			Content:  Content{"invalid/json": {Example: s}},
+			Content:  Content{"invalid/json": {Examples: map[string]Example{"invalid": {Value: s}}}},
 		}
 	}
 
@@ -173,16 +174,32 @@ func (r Response) WithJSONString(s string) Response {
 
 // WithStruct takes a struct and adds a json Content to the BodyObject
 func (r Response) WithStruct(i any) Response {
-	return Response{
-		MimeType: Json,
-		Status:   r.Status,
-		Desc:     r.Desc,
-		Content: Content{Json: Media{
-			Schema:  buildSchema(i),
-			Example: i,
-		}},
+	m := r.Content[Json]
+	m.AddExample(i)
+	return r
+}
+
+// AddExample will add an example
+func (m *Media) AddExample(i any) {
+	if m.Examples == nil {
+		m.Examples = make(map[string]Example)
+	}
+	schema := buildSchema(i)
+	if m.Schema.Title == "" {
+		m.Schema = schema
+	}
+	exName := schema.Title
+	ex := Example{
+		Desc:  schema.Desc,
+		Value: i,
 	}
 
+	// create unique name if key already exists
+	if _, found := m.Examples[exName]; found {
+		exName = exName + strconv.Itoa(len(m.Examples))
+	}
+
+	m.Examples[exName] = ex
 }
 
 func (r *Route) AddResponse(resp Response) *Route {
@@ -200,7 +217,7 @@ func (r RequestBody) WithJSONString(s string) RequestBody {
 		// return a response with the error message
 		return RequestBody{
 			Desc:    err.Error(),
-			Content: Content{"invalid/json": {Example: s}},
+			Content: Content{"invalid/json": {Examples: map[string]Example{"invalid": {Value: s}}}},
 		}
 	}
 
@@ -208,16 +225,9 @@ func (r RequestBody) WithJSONString(s string) RequestBody {
 }
 
 func (r RequestBody) WithStruct(i any) RequestBody {
-	return RequestBody{
-		Desc:     r.Desc,
-		Required: r.Required,
-		Content: Content{
-			XForm: {
-				Schema:  buildSchema(i),
-				Example: i,
-			},
-		},
-	}
+	m := r.Content[Json]
+	m.AddExample(i)
+	return r
 }
 
 func (r *Route) AddRequest(req RequestBody) *Route {

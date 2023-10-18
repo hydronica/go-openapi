@@ -17,8 +17,8 @@ github.com/hydronica/go-config v0.2.5/go.mod h1:PwClcQS7dtP0LZpxaEUzhz5osH9uAQz5
 github.com/hydronica/toml v0.4.1 h1:rsQiPyfiOctbn2oEE33bZsOO6jmGnUvThFU5Eg7uXaQ=
 github.com/hydronica/toml v0.4.1/go.mod h1:c7QhbYq3Wp9SlOWuG7MAieKUyXP2P/hXhy/YqWfbS/4=
 github.com/hydronica/trial v0.5.0/go.mod h1:sfQjkbZWzxECJphMWtdc508UcJhYUvnw6LlGYsniGCg=
-github.com/hydronica/trial v0.7.0 h1:U67U6EeEnt6J+VpXfftUrrdY2J7mbCVqcRBdtuyQ98U=
-github.com/hydronica/trial v0.7.0/go.mod h1:f193eil48XkAgqr3UOifFyc8it0vYO83BYq20cAVSEs=
+github.com/hydronica/trial v0.7.1 h1:wlD88weXRWaGTyO4nZGh5kqHqaJLBrdbkYL/gnZ3Hbc=
+github.com/hydronica/trial v0.7.1/go.mod h1:f193eil48XkAgqr3UOifFyc8it0vYO83BYq20cAVSEs=
 github.com/iancoleman/strcase v0.1.2 h1:gnomlvw9tnV3ITTAxzKSgTF+8kFWcU/f+TgttpXGz1U=
 github.com/iancoleman/strcase v0.1.2/go.mod h1:SK73tn/9oHe+/Y0h39VT4UCxmurVJkR5NA7kMEAOgSE=
 github.com/jbsmith7741/go-tools v0.4.0 h1:UpKLVkPQRZEvxec110Nh0f+GeOiRSHo5oCpw/eD3AHs=

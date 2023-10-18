@@ -378,6 +378,8 @@ func buildSchema(body any) (s Schema) {
 		kind = value.Kind()
 	}
 
+	s.Title = typ.String()
+
 	switch kind {
 	case reflect.Map:
 		s.Type = Object
@@ -422,26 +424,15 @@ func buildSchema(body any) (s Schema) {
 			if !value.Field(i).CanInterface() || jsonTag == "-" {
 				continue
 			}
-			// val is the reflect.value of the struct field
-			val := value.Field(i)
-			// the name of the struct field
-			varName := field.Name
+
+			val := value.Field(i) //  the reflect.value of the struct field
+			varName := field.Name // the name of the struct field
 			if jsonTag != "" {
 				varName = jsonTag
 			}
 
-			fieldType := typ.Field(i).Type.Kind()
-
-			// todo do we need this pointer logic?
-			if fieldType == reflect.Pointer {
-				// get the value of the pointer
-				va := reflect.ValueOf(val.Interface()).Elem()
-				fieldType = va.Kind()
-			}
-
 			prop := buildSchema(val.Interface())
 			prop.Desc = desc
-			prop.Title = kind.String()
 			s.Properties[varName] = prop
 
 		}

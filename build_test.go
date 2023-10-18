@@ -51,19 +51,22 @@ func TestBuildSchema(t *testing.T) {
 				},
 			},
 			Expected: Schema{
-				Type: "object",
+				Type:  "object",
+				Title: "map[string]interface {}",
 				Properties: map[string]Schema{
 					"customValues": {
 						Type: Array,
 						Items: &Schema{
-							Type: Object,
+							Type:  Object,
+							Title: "map[string]interface {}",
 							Properties: map[string]Schema{
 								"adate":  {Type: "string"},
 								"avalue": {Type: "integer"},
 							},
 						}},
 					"default": {
-						Type: Object,
+						Type:  Object,
+						Title: "map[string][]float64",
 						Properties: map[string]Schema{
 							"monthTrans": {Type: Array, Items: &Schema{Type: Number}},
 							"monthProc":  {Type: Array, Items: &Schema{Type: Number}},
@@ -77,6 +80,7 @@ func TestBuildSchema(t *testing.T) {
 			},
 			Expected: Schema{
 				Type:       "object",
+				Title:      "map[string]string",
 				Properties: map[string]Schema{"key": {Type: "string"}},
 			},
 		},
@@ -85,10 +89,12 @@ func TestBuildSchema(t *testing.T) {
 				"key": {},
 			},
 			Expected: Schema{
-				Type: Object,
+				Type:  Object,
+				Title: "map[string]openapi.Primitives",
 				Properties: map[string]Schema{
 					"key": {
-						Type: "object",
+						Type:  "object",
+						Title: "openapi.Primitives",
 						Properties: map[string]Schema{
 							"custom_int": {Type: Integer},
 							"String":     {Type: String},
@@ -105,12 +111,16 @@ func TestBuildSchema(t *testing.T) {
 			},
 
 			Expected: Schema{
-				Type: "object",
+				Type:  "object",
+				Title: "struct { F2 *openapi.TestF }",
 				Properties: map[string]Schema{
-					"F2": {Type: "object", Properties: map[string]Schema{
-						"f1_int":  {Type: "integer"},
-						"f2_bool": {Type: "boolean"},
-					}},
+					"F2": {
+						Type:  "object",
+						Title: "openapi.TestF",
+						Properties: map[string]Schema{
+							"f1_int":  {Type: "integer"},
+							"f2_bool": {Type: "boolean"},
+						}},
 				},
 			},
 		},
@@ -127,7 +137,8 @@ func TestBuildSchema(t *testing.T) {
 		"simple_object": {
 			Input: Primitives{},
 			Expected: Schema{
-				Type: Object,
+				Type:  Object,
+				Title: "openapi.Primitives",
 				Properties: map[string]Schema{
 					"custom_int": {Type: Integer},
 					"String":     {Type: String},
@@ -147,10 +158,12 @@ func TestBuildSchema(t *testing.T) {
 				},
 			},
 			Expected: Schema{
-				Type: "object",
+				Type:  "object",
+				Title: "struct { F1 openapi.TestA }",
 				Properties: map[string]Schema{
 					"F1": {
-						Type: "object",
+						Type:  "object",
+						Title: "openapi.TestA",
 						Properties: map[string]Schema{
 							"F1": {Type: "string"},
 							"F2": {Type: "array", Items: &Schema{Type: "string"}},
@@ -167,7 +180,8 @@ func TestBuildSchema(t *testing.T) {
 				F3: 1234,
 			},
 			Expected: Schema{
-				Type: "object",
+				Type:  "object",
+				Title: "openapi.TestA",
 				Properties: map[string]Schema{
 					"F1": {Type: "string"},
 					"F2": {Type: "array", Items: &Schema{Type: "string"}},
@@ -184,10 +198,12 @@ func TestBuildSchema(t *testing.T) {
 				},
 			},
 			Expected: Schema{
-				Type: Object,
+				Type:  Object,
+				Title: "struct { F1 *openapi.TestA }",
 				Properties: map[string]Schema{
 					"F1": {
-						Type: Object,
+						Type:  Object,
+						Title: "openapi.TestA",
 						Properties: map[string]Schema{
 							"F1": {Type: "string"},
 							"F2": {Type: "array", Items: &Schema{Type: "string"}},
@@ -204,6 +220,7 @@ func TestBuildSchema(t *testing.T) {
 				Type: Array,
 				Items: &Schema{Type: Array,
 					Items: &Schema{
+						Title:      "struct { Name string }",
 						Type:       Object,
 						Properties: map[string]Schema{"Name": {Type: String}},
 					},

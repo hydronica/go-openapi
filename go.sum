@@ -1,2 +1,4 @@
 github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+github.com/hydronica/trial v0.7.1 h1:wlD88weXRWaGTyO4nZGh5kqHqaJLBrdbkYL/gnZ3Hbc=
+github.com/hydronica/trial v0.7.1/go.mod h1:f193eil48XkAgqr3UOifFyc8it0vYO83BYq20cAVSEs=
