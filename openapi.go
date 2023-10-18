@@ -115,7 +115,7 @@ type SchemaOld struct {
 	ExternalDocs  *ExternalDocs `json:"externalDocs,omitempty"`         // Additional external documentation for this schema.
 }
 
-type Properties map[string]Prop
+type Properties map[string]Schema
 
 // Param see https://swagger.io/docs/specification/describing-parameters/
 // - Path /user/{id}

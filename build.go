@@ -62,16 +62,16 @@ const (
 	TRACE   Method = "trace"
 )
 
-type Type int
+type Type string
 type Format int
 
 const (
-	Integer Type = iota + 1
-	Number
-	String
-	Boolean
-	Object
-	Array
+	Integer Type = "integer"
+	Number  Type = "number"
+	String  Type = "string"
+	Boolean Type = "boolean"
+	Object  Type = "object"
+	Array   Type = "array"
 )
 
 const (
@@ -85,24 +85,6 @@ const (
 	DateTime // date-time - https://www.rfc-editor.org/rfc/rfc3339#section-5.6
 	Password
 )
-
-func (t Type) String() string {
-	switch t {
-	case Integer:
-		return "integer"
-	case Number:
-		return "number"
-	case String:
-		return "string"
-	case Boolean:
-		return "boolean"
-	case Object:
-		return "object"
-	case Array:
-		return "array"
-	}
-	return ""
-}
 
 func (f Format) String() string {
 	switch f {
@@ -249,13 +231,13 @@ func (o *OpenAPI) AddParam(ur UniqueRoute, rp RouteParam) error {
 	}
 
 	// if no type is given defaults to string
-	if rp.Type == 0 {
+	if rp.Type == "" {
 		param.Schema = &Schema{
-			Type: String.String(),
+			Type: String,
 		}
 	} else {
 		param.Schema = &Schema{
-			Type: rp.Type.String(),
+			Type: rp.Type,
 			//Format: rp.Format.String(),
 		}
 	}
@@ -387,55 +369,43 @@ func buildSchema(body any) (s Schema) {
 	typ := reflect.TypeOf(body)
 	kind := typ.Kind()
 
-	/* todo: support
-	   if kind == reflect.Pointer {
-	   		value = value.Elem()
-	   		if !value.IsValid() {
-	   			return s
-	   		}
-	   		typ = value.Type()
-	   		kind = value.Kind()
-	   	} */
+	if kind == reflect.Pointer {
+		if value.IsNil() { // create a new object if pointer is nil
+			value = reflect.New(typ.Elem())
+		}
+		value = value.Elem()
+		typ = value.Type()
+		kind = value.Kind()
+	}
 
 	switch kind {
 	case reflect.Map:
-		s.Type = Object.String()
+		s.Type = Object
 		keys := value.MapKeys()
 		if len(keys) == 0 {
 			return s
 		}
-		// build out the map keys as a property schemas for openapi
-		/* todo: move to a seperate map method?
+		if s.Properties == nil {
+			s.Properties = make(Properties)
+		}
 		for _, k := range keys {
-			v := value.MapIndex(k)
-			field := k.String()
-			if s.Properties == nil {
-				s.Properties = make(Properties)
-			}
-
-			schema := buildSchema(v.Interface())
-
-			s.Properties[field] = schema
-		} */
+			s.Properties[k.String()] = buildSchema(value.MapIndex(k).Interface())
+		}
 
 	case reflect.Struct:
+		// todo: when to ref rather than embed?
 		// these are special cases for time strings
 		// that may have formatting (time.Time default is RFC3339)
-		switch x := value.Interface().(type) {
+		switch value.Interface().(type) {
 		case time.Time:
-			s.Type = String.String()
-			s.Format = time.RFC3339
-			/*if f, ok := tags["format"]; ok && f != "" {
-				s.Format = tags["format"]
-			}*/
+			s.Type = String
 			return s
 		case Time:
-			s.Type = String.String()
-			s.Format = x.Format
+			s.Type = String
 			return s
 		}
 
-		s.Type = Object.String()
+		s.Type = Object
 		numFields := typ.NumField()
 		if s.Properties == nil {
 			s.Properties = make(Properties)
@@ -456,6 +426,9 @@ func buildSchema(body any) (s Schema) {
 			val := value.Field(i)
 			// the name of the struct field
 			varName := field.Name
+			if jsonTag != "" {
+				varName = jsonTag
+			}
 
 			fieldType := typ.Field(i).Type.Kind()
 
@@ -466,47 +439,57 @@ func buildSchema(body any) (s Schema) {
 				fieldType = va.Kind()
 			}
 
-			prop := buildProp(val.Interface())
+			prop := buildSchema(val.Interface())
 			prop.Desc = desc
+			prop.Title = kind.String()
 			s.Properties[varName] = prop
 
 		}
-
+	case reflect.Int32, reflect.Uint32:
+		return Schema{Type: Integer}
+	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64:
+		return Schema{Type: Integer}
+	case reflect.Float32, reflect.Float64:
+		return Schema{Type: Number}
+	case reflect.Bool:
+		return Schema{Type: Boolean}
+	case reflect.String:
+		return Schema{Type: String}
 	case reflect.Slice, reflect.Array:
-	/*	todo: to implement
-		prop := Schema{}
-		s.Type = Array.String()
-		if value.Len() > 0 && value.IsValid() {
-			obj := value.Index(0).Interface()
-			prop = buildSchema(obj)
-
+		if k := typ.Elem().Kind(); k == reflect.Interface {
+			// todo: We have a anyOf array
+		} else if k == reflect.Map || k == reflect.Struct ||
+			k == reflect.Array || k == reflect.Slice {
+			// check the type of the first element of the array if it exists
+			if value.Len() > 0 && value.IsValid() {
+				prop := buildSchema(value.Index(0).Interface())
+				return Schema{
+					Type:  Array,
+					Items: &prop,
+				}
+			}
 		}
-		s.Items = &prop */
+
+		// since the slice may be empty, create the child object to determine its type.
+		child := reflect.New(typ.Elem()).Elem().Interface()
+		prop := buildSchema(child)
+		return Schema{
+			Type:  Array,
+			Items: &prop,
+		}
 	default:
-		p := buildProp(body)
-		s.Type = p.Type
-		s.Format = p.Format
+		return Schema{Type: (Type)("invalid " + kind.String())}
 	}
 
 	return s
 }
 
-// buildProp take a primitive type and stores that in a prop
-func buildProp(value any) Prop {
-	kind := reflect.TypeOf(value).Kind()
-	switch kind {
-	case reflect.Int32, reflect.Uint32:
-		return Prop{Type: Integer.String(), Format: Int32.String()}
-	case reflect.Int, reflect.Int64, reflect.Uint, reflect.Uint64:
-		return Prop{Type: Integer.String(), Format: Int64.String()}
-	case reflect.Float32, reflect.Float64:
-		return Prop{Type: Number.String(), Format: Float.String()}
-	case reflect.Bool:
-		return Prop{Type: Boolean.String()}
-	case reflect.String:
-		return Prop{Type: String.String()}
+func reflect2Type(s string) Type {
+	switch s {
+	case "int":
+		return Integer
 	default:
-		return Prop{Type: "invalid", Format: kind.String()}
+		return Type(s)
 	}
 }
 

@@ -10,34 +10,17 @@ import (
 )
 
 func TestBuildSchema(t *testing.T) {
-	type PrimitiveTypes struct {
-		F1 int    `json:"field_one"`
-		F2 string `json:"field_two"`
+	type Primitives struct {
+		Int    int `json:"custom_int"`
+		String string
+		Bool   bool
+		Number float64
 	}
 
 	type TestA struct {
-		F1 string   `json:"field_one"`
-		F2 []string `json:"field_two"`
-		F3 int      `json:"field_three"`
-	}
-
-	type TestB struct {
-		F1 TestA `json:"b_field_one"` // struct
-	}
-
-	// test with an object slice
-	type TestC struct {
-		F1 []TestA `json:"c_field_one"`
-	}
-
-	// test with an array type
-	type TestD struct {
-		F1 [2]string `json:"d_field_one"`
-	}
-
-	// test with a pointer
-	type TestE struct {
-		F1 *TestA `json:"e_field_one"` // pointer to struct
+		F1 string
+		F2 []string
+		F3 int
 	}
 
 	// test a time type
@@ -51,19 +34,12 @@ func TestBuildSchema(t *testing.T) {
 		F2 bool `json:"f2_bool"`
 	}
 
-	type TestP struct {
-		F1 *TestF `json:"f1_pointer_field"`
-		F2 *TestF `json:"f2_pointer_field"`
-	}
-
 	fn := func(i any) (Schema, error) {
-		s := buildSchema(i)
-		return s, nil
+		return buildSchema(i), nil
 	}
 
-	//var z *TestF = nil // a nil typed pointer to test
 	cases := trial.Cases[any, Schema]{
-		"map_test_interface": {
+		"map_any": {
 			Input: map[string]any{
 				"customValues": []map[string]any{
 					{"adate": "2023-02-01T00:00:00Z", "avalue": 1427200},
@@ -76,33 +52,69 @@ func TestBuildSchema(t *testing.T) {
 			},
 			Expected: Schema{
 				Type: "object",
+				Properties: map[string]Schema{
+					"customValues": {
+						Type: Array,
+						Items: &Schema{
+							Type: Object,
+							Properties: map[string]Schema{
+								"adate":  {Type: "string"},
+								"avalue": {Type: "integer"},
+							},
+						}},
+					"default": {
+						Type: Object,
+						Properties: map[string]Schema{
+							"monthTrans": {Type: Array, Items: &Schema{Type: Number}},
+							"monthProc":  {Type: Array, Items: &Schema{Type: Number}},
+						}},
+				},
 			},
-			//`{"description":"test description","properties":{"customValues":{"items":{"properties":{"adate":{"type":"string"},"avalue":{"format":"int64","type":"integer"}},"type":"object"},"type":"array"},"default":{"properties":{"monthProc":{"items":{"format":"float","type":"number"},"type":"array"},"monthTrans":{"items":{"format":"float","type":"number"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
-		/*"map_test_simple": {
+		"map_simple": {
 			Input: map[string]string{
 				"key": "value",
 			},
-			Expected: `{"description":"test description","properties":{"key":{"type":"string"}},"title":"test title","type":"object"}`,
-		},
-		"map_test_object": {
-			Input: map[string]PrimitiveTypes{
-				"keyvalue": {F1: 123, F2: "string value"},
+			Expected: Schema{
+				Type:       "object",
+				Properties: map[string]Schema{"key": {Type: "string"}},
 			},
-			Expected: `{"description":"test description","properties":{"keyvalue":{"properties":{"field_one":{"format":"int64","type":"integer"},"field_two":{"type":"string"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
-		"nil_typed_pointer_test": {
-			Input: TestP{
-				F1: &TestF{
-					F1: 321,
-					F2: true,
+		"map_object": {
+			Input: map[string]Primitives{
+				"key": {},
+			},
+			Expected: Schema{
+				Type: Object,
+				Properties: map[string]Schema{
+					"key": {
+						Type: "object",
+						Properties: map[string]Schema{
+							"custom_int": {Type: Integer},
+							"String":     {Type: String},
+							"Bool":       {Type: Boolean},
+							"Number":     {Type: Number},
+						},
+					},
 				},
-				F2: z, // testing a nil typed pointer
+			},
+		},
+		"map_nil_struct": {
+			Input: struct{ F2 *TestF }{
+				F2: (*TestF)(nil), // testing a nil typed pointer
 			},
 
-			Expected: `{"description":"test description","properties":{"f1_pointer_field":{"properties":{"f1_int":{"format":"int64","type":"integer"},"f2_bool":{"type":"boolean"}},"type":"object"},"f2_pointer_field":{}},"title":"test title","type":"object"}`,
+			Expected: Schema{
+				Type: "object",
+				Properties: map[string]Schema{
+					"F2": {Type: "object", Properties: map[string]Schema{
+						"f1_int":  {Type: "integer"},
+						"f2_bool": {Type: "boolean"},
+					}},
+				},
+			},
 		},
-		"time_test": {
+		/*"time_test": {
 			Input: TestT{
 				F1: time.Date(2023, time.January, 11, 0, 0, 0, 0, time.UTC),
 				F2: Time{
@@ -113,67 +125,94 @@ func TestBuildSchema(t *testing.T) {
 			Expected: `{"description":"test description","properties":{"openapi.time":{"format":"2006-01-02","type":"string"},"time.time":{"format":"2006-01-02","type":"string"}},"title":"test title","type":"object"}`,
 		},*/
 		"simple_object": {
-			Input: TestA{
+			Input: Primitives{},
+			Expected: Schema{
+				Type: Object,
+				Properties: map[string]Schema{
+					"custom_int": {Type: Integer},
+					"String":     {Type: String},
+					"Bool":       {Type: Boolean},
+					"Number":     {Type: Number},
+				},
+			},
+		},
+		"object_within_object": {
+			Input: struct {
+				F1 TestA
+			}{
+				TestA{
+					F1: "testing a",
+					F2: []string{"one", "two", "three"},
+					F3: 1234,
+				},
+			},
+			Expected: Schema{
+				Type: "object",
+				Properties: map[string]Schema{
+					"F1": {
+						Type: "object",
+						Properties: map[string]Schema{
+							"F1": {Type: "string"},
+							"F2": {Type: "array", Items: &Schema{Type: "string"}},
+							"F3": {Type: "integer"},
+						},
+					},
+				},
+			},
+		},
+		"pointer_object": {
+			Input: &TestA{
 				F1: "testing a",
 				F2: []string{"one", "two", "three"},
 				F3: 1234,
 			},
 			Expected: Schema{
-				Type: Object.String(),
-				Properties: Properties{
-					"F1": {Type: String.String()},
-					"F2": {Type: "array"},
-					"F3": {Type: "integer", Format: "int64"},
+				Type: "object",
+				Properties: map[string]Schema{
+					"F1": {Type: "string"},
+					"F2": {Type: "array", Items: &Schema{Type: "string"}},
+					"F3": {Type: "integer"},
 				},
 			},
-		}, /*
-			"object_within_object": {
-				Input: TestB{
-					TestA{
-						F1: "testing a",
-						F2: []string{"one", "two", "three"},
-						F3: 1234,
+		},
+		"pointer_in_object": {
+			Input: &struct{ F1 *TestA }{
+				&TestA{
+					F1: "testing a",
+					F2: []string{"one", "two", "three"},
+					F3: 1234,
+				},
+			},
+			Expected: Schema{
+				Type: Object,
+				Properties: map[string]Schema{
+					"F1": {
+						Type: Object,
+						Properties: map[string]Schema{
+							"F1": {Type: "string"},
+							"F2": {Type: "array", Items: &Schema{Type: "string"}},
+							"F3": {Type: "integer"},
+						}},
+				},
+			},
+		},
+		"array_of_array_objects": {
+			Input: [][]struct {
+				Name string
+			}{},
+			Expected: Schema{
+				Type: Array,
+				Items: &Schema{Type: Array,
+					Items: &Schema{
+						Type:       Object,
+						Properties: map[string]Schema{"Name": {Type: String}},
 					},
 				},
-				Expected: `{"description":"test description","properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 			},
-			"pointer_object": {
-				Input: &TestB{
-					TestA{
-						F1: "testing a",
-						F2: []string{"one", "two", "three"},
-						F3: 1234,
-					},
-				},
-				Expected: `{"description":"test description","properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
-			},
-			"pointer_in_object": {
-				Input: &TestE{
-					&TestA{
-						F1: "testing a",
-						F2: []string{"one", "two", "three"},
-						F3: 1234,
-					},
-				},
-				Expected: `{"description":"test description","properties":{"e_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
-			},
-			"array_of_array_objects": {
-				Input: []TestC{
-					{[]TestA{
-						{
-							F1: "testing slice 1",
-							F2: []string{"nine", "eight", "seven"},
-							F3: 987,
-						},
-						{
-							F1: "testing slice 2",
-							F2: []string{"three", "two", "one"},
-							F3: 321,
-						},
-					}},
-				},
-				Expected: `{"description":"test description","items":{"properties":{"c_field_one":{"items":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"},"type":"array"}},"type":"object"},"title":"test title","type":"array"}`,
-			}, */
+		},
+		/*"any_array": {
+			Input: []any{"eholo", struct{ Name string }{Name: "abc"}},
+		}, */
 	}
 
 	trial.New(fn, cases).SubTest(t)
