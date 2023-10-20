@@ -1,37 +1,21 @@
 package openapi
 
 import (
+	"encoding/json"
+	"sort"
 	"strconv"
 )
 
 // OpenAPI represents the definition of the openapi specification 3.0.3
 type OpenAPI struct {
 	Version string   `json:"openapi"`           // the  semantic version number of the OpenAPI Specification version
-	Tags    []Tag    `json:"tags,omitempty"`    // A list of tags used by the specification with additional metadata
 	Servers []Server `json:"servers,omitempty"` // Array of Server Objects, which provide connectivity information to a target server.
-	Paths   Paths    `json:"paths"`             // REQUIRED. Map of uri paths mapped to methods i.e., get, put, post, delete
 	Info    Info     `json:"info"`              // REQUIRED. Provides metadata about the API. The metadata MAY be used by tooling as required.
+	Tags    []Tag    `json:"tags,omitempty"`    // A list of tags used by the specification with additional metadata
+	Routes  router   `json:"paths"`             // key= path|method
 	//Components   Components    `json:"components,omitempty"`   // reuseable components not used here
 	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"` //Additional external documentation.
 }
-
-// Operation describes a single API operation on a path.
-type Operation struct {
-	Tags         []string      `json:"tags,omitempty"`
-	Summary      string        `json:"summary,omitempty"`
-	Desc         string        `json:"description,omitempty"`
-	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"`
-	OperationID  string        `json:"operationId,omitempty"`
-	Params       []Param       `json:"parameters,omitempty"`  // A list of parameters that are applicable for this operation.
-	RequestBody  *RequestBody  `json:"requestBody,omitempty"` // The request body applicable for this operation.
-	Responses    Responses     `json:"responses,omitempty"`   // key 200,400 REQUIRED. The list of possible responses as they are returned from executing this operation.
-}
-
-// Paths holds the relative paths to the individual endpoints and their operations.
-type Paths map[string]OperationMap //[url_path]OperationMap
-
-// OperationMap describes the operations available on a single path.
-type OperationMap map[Method]Operation // map of methods to a openAPI Operation object
 
 // Code a valid https status such as '200', '201', '400', 'default'
 type Code int
@@ -53,6 +37,39 @@ func (c *Code) UnmarshalText(b []byte) error {
 	i, err := strconv.Atoi(string(b))
 	*c = Code(i)
 	return err
+}
+
+type Params map[string]Param
+
+// List converts the Params map to a sorted slice
+func (p Params) List() []Param {
+	l := make([]Param, len(p))
+	i := 0
+	for _, v := range p {
+		l[i] = v
+		i++
+	}
+	sort.Slice(l, func(i, j int) bool {
+		if l[i].In == l[j].In {
+			return l[i].Name < l[j].Name
+		}
+		return l[i].In < l[j].In
+	})
+	return l
+}
+
+func (p Params) MarshalText() ([]byte, error) {
+	l := p.List()
+	return json.Marshal(l)
+}
+
+func (p *Params) UnmarshalText(b []byte) error {
+	l := make([]Param, 0)
+	err := json.Unmarshal(b, &l)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type MIMEType string
@@ -105,19 +122,23 @@ type RequestBody struct {
 	Required bool    `json:"required,omitempty"`    // Determines if the request body is required in the request. Defaults to false.
 }
 
-// Schema Object allows the definition of input and output data types
-// These types can be objects, but also primitives and arrays
+// Schema Object defines data types. objects (structs), maps, primitives and arrays
 // This object is an extended subset of the JSON Schema Specification
-type SchemaOld struct {
-	AddProperties *SchemaOld    `json:"additionalProperties,omitempty"` // To define a dictionary, use type: object and use the additionalProperties keyword to specify the type of values in key/value pairs.
-	Title         string        `json:"title,omitempty"`                // Title?
-	Desc          string        `json:"description,omitempty"`          // CommonMark syntax MAY be used for rich text representation.
-	Type          string        `json:"type,omitempty"`                 // Value MUST be a string. Multiple types via an array are not supported.
-	Format        string        `json:"format,omitempty"`               // See Data Type Formats for further details. While relying on JSON Schema's defined formats, the OAS offers a few additional predefined formats.
-	Items         *SchemaOld    `json:"items,omitempty"`                // Value MUST be an object and not an array. Inline or referenced schema MUST be of a Schema Object and not a standard JSON Schema. items MUST be present if the type is array.
-	Properties    Properties    `json:"properties,omitempty"`           // Property definitions MUST be a Schema Object and not a standard JSON Schema (inline or referenced).
-	Example       any           `json:"example,omitempty"`              // A free-form property to include an example of an instance for this schema. To represent examples that cannot be naturally represented in JSON or YAML, a string value can be used to contain the example with escaping where necessary.
-	ExternalDocs  *ExternalDocs `json:"externalDocs,omitempty"`         // Additional external documentation for this schema.
+type Schema struct {
+	Title string `json:"title,omitempty"`
+	Type  Type   `json:"type,omitempty"`
+	//Format string `json:"format,omitempty"`
+	Desc string `json:"description,omitempty"`
+
+	// Enum []string
+	// Default any
+	// Pattern string
+	// Example any
+	Items *Schema `json:"items,omitempty"`
+	Ref   string  `json:"$ref,omitempty"` // link to object, #/components/schemas/{object}
+
+	// Property definitions MUST be a Schema Object and not a standard JSON Schema (inline or referenced).
+	Properties map[string]Schema `json:"properties,omitempty"`
 }
 
 type Properties map[string]Schema
@@ -128,13 +149,17 @@ type Properties map[string]Schema
 // - header X-MyHeader: Value
 // - cookie
 type Param struct {
-	Name     string             `json:"name,omitempty"`        // REQUIRED. The name of the parameter. Parameter names are case sensitive.
-	Desc     string             `json:"description,omitempty"` // A brief description of the parameter. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
-	Style    string             `json:"style,omitempty"`       // Describes how the parameter value will be serialized depending on the type of the parameter value. Default values (based on value of in): for query - form; for path - simple; for header - simple; for cookie - form.
-	In       string             `json:"in"`                    // REQUIRED. The location of the parameter. Possible values are "query", "header", "path" or "cookie".
-	Schema   *Schema            `json:"schema,omitempty"`      // The schema defining the type used for the parameter.
-	Examples map[string]Example `json:"examples"`              // Examples of the parameter’s potential value. Each example SHOULD contain a value in the correct format as specified in the parameter encoding.
-	Required bool               `json:"required"`              // Determines whether this parameter is mandatory. If the parameter location is "path", this property is REQUIRED and its value MUST be true. Otherwise, the property MAY be included and its default value is false
+	Name string `json:"name,omitempty"`        // REQUIRED. The name of the parameter.
+	Desc string `json:"description,omitempty"` // A brief description of the parameter.
+
+	In string `json:"in"` // REQUIRED. Param Type: "query", "header", "path" or "cookie".
+
+	Schema   *Schema            `json:"schema,omitempty"` // The schema defining the param
+	Examples map[string]Example `json:"examples"`         // Examples of the parameter’s potential value.
+
+	// NOT CURRENTLY SUPPORTED
+	//Style    string             `json:"style,omitempty"`       // Describes how the parameter value will be serialized depending on the type of the parameter value. Default values (based on value of in): for query - form; for path - simple; for header - simple; for cookie - form.
+	//Required bool               `json:"required"`              // Determines whether this parameter is mandatory. If the parameter location is "path", this property is REQUIRED and its value MUST be true. Otherwise, the property MAY be included and its default value is false
 }
 
 type Info struct {

@@ -2,65 +2,12 @@ package openapi
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
+	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 )
-
-func New2(title, version, description string) *OpenAPI2 {
-	return &OpenAPI2{
-		Version: "3.0.3",
-		Info: Info{
-			Title:   title,
-			Version: version,
-			Desc:    description,
-		},
-		Tags:   make([]Tag, 0),
-		Routes: make(router),
-		//ExternalDocs: &ExternalDocs{},
-	}
-}
-
-func NewFromJson2(spec string) (api *OpenAPI2, err error) {
-	api = &OpenAPI2{
-		Routes: make(router),
-	}
-	err = json.Unmarshal([]byte(spec), &api)
-	if err != nil {
-		return nil, fmt.Errorf("error with unmarshal %w", err)
-	}
-	return api, nil
-}
-
-// OpenAPI2 represents the definition of the openapi specification 3.0.3
-type OpenAPI2 struct {
-	Version string   `json:"openapi"`           // the  semantic version number of the OpenAPI Specification version
-	Servers []Server `json:"servers,omitempty"` // Array of Server Objects, which provide connectivity information to a target server.
-	Info    Info     `json:"info"`              // REQUIRED. Provides metadata about the API. The metadata MAY be used by tooling as required.
-	Tags    []Tag    `json:"tags,omitempty"`    // A list of tags used by the specification with additional metadata
-	Routes  router   `json:"paths"`             // key= path|method
-	//Components   Components    `json:"components,omitempty"`   // reuseable components not used here
-	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"` //Additional external documentation.
-}
-
-type Schema struct {
-	Title string `json:"title,omitempty"`
-	Type  Type   `json:"type,omitempty"`
-	//Format string `json:"format,omitempty"`
-	Desc string `json:"description,omitempty"`
-
-	// Enum []string
-	// Default any
-	// Pattern string
-	// Example any
-	Items *Schema `json:"items,omitempty"`
-	Ref   string  `json:"$ref,omitempty"` // link to object, #/components/schemas/{object}
-
-	// Property definitions MUST be a Schema Object and not a standard JSON Schema (inline or referenced).
-	Properties map[string]Schema `json:"properties,omitempty"`
-}
 
 type router map[string]*Route
 
@@ -92,27 +39,6 @@ func (r router) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (o *OpenAPI2) JSON() string {
-	b, err := json.MarshalIndent(o, "", "    ")
-	if err != nil {
-		log.Println(err)
-	}
-	return string(b)
-}
-
-func (o *OpenAPI2) AddRoute(r *Route) error {
-	if r.path == "" || r.method == "" {
-		return errors.New("path or method cannot be empty")
-	}
-	key := r.path + "|" + r.method
-	if _, found := o.Routes[key]; found {
-		return errors.New("Route already found use GetRoute to make changes")
-	}
-
-	o.Routes[key] = r
-	return nil
-}
-
 // Route is a simplified definition for managing routes in code
 type Route struct {
 	// internal reference
@@ -122,8 +48,8 @@ type Route struct {
 	Tag       []string          `json:"tags,omitempty"`
 	Summary   string            `json:"summary,omitempty"`
 	Responses map[Code]Response `json:"responses,omitempty"` // [status_code]Response
-	//Params    map[string]RouteParam // key reference for params
-	Requests *RequestBody `json:"requests,omitempty"` // key reference for requests
+	Params    Params            // key reference for params. key is name of Param
+	Requests  *RequestBody      `json:"requests,omitempty"` // key reference for requests
 
 	/* NOT CURRENTLY SUPPORT VALUES
 	// operationId is an optional unique string used to identify an operation
@@ -135,6 +61,19 @@ type Route struct {
 	*/
 }
 
+// parsePath goes through a url path and pulls out all params
+// values surrounded by {}
+var regexPathParam = regexp.MustCompile(`\{([^{}]+)\}`)
+
+func parsePath(path string) []string {
+	matches := regexPathParam.FindAllStringSubmatch(path, -1)
+	r := make([]string, len(matches))
+	for i := 0; i < len(matches); i++ {
+		r[i] = matches[i][1]
+	}
+	return r
+}
+
 func (r *Route) WithDetails(tag, summary string) *Route {
 	r.Tag = []string{tag}
 	r.Summary = summary
@@ -143,7 +82,7 @@ func (r *Route) WithDetails(tag, summary string) *Route {
 
 // GetRoute associated with the path and method.
 // create a new Route if Route was not found.
-func (o *OpenAPI2) GetRoute(path, method string) *Route {
+func (o *OpenAPI) GetRoute(path, method string) *Route {
 	key := path + "|" + method
 	r, found := o.Routes[key]
 	if !found {
@@ -153,7 +92,7 @@ func (o *OpenAPI2) GetRoute(path, method string) *Route {
 	return r
 }
 
-// WithJSONString takes a json string object and adds a json Content to the BodyObject
+// WithJSONString takes a json string object and adds a json Content to the Response
 // s is unmarshalled into a map to extract the key and value pairs
 // JSONStringResp || resp.JSONString(s)
 func (r Response) WithJSONString(s string) Response {
@@ -172,7 +111,7 @@ func (r Response) WithJSONString(s string) Response {
 	return r.WithStruct(m)
 }
 
-// WithStruct takes a struct and adds a json Content to the BodyObject
+// WithStruct takes a struct and adds a json Content to the Response
 func (r Response) WithStruct(i any) Response {
 	m := r.Content[Json]
 	m.AddExample(i)
@@ -243,7 +182,88 @@ func (r *Route) AddHeaderParam() *Route {
 	return r
 }
 
-func (r *Route) AddPathParam() *Route {
+// AddPathParam adds the path params to the route
+// It does not validate that the name is part of the path
+// or prevent duplicate paths from being added.
+func (r *Route) AddPathParam(name string, value any) *Route {
+	var p Param
+	defer func() {
+		r.Params[name] = p
+	}()
+	if r.Params == nil {
+		r.Params = make(Params)
+		for _, k := range parsePath(r.path) {
+			r.Params[k] = Param{}
+		}
+	}
+	p, found := r.Params[name]
+	if !found {
+		p = Param{
+			In: "path", Name: name, Desc: "err: not found in path",
+			Examples: make(map[string]Example),
+		}
+	}
+	var errMsg string
+	if !isPrimitive(value) {
+		errMsg = "must be primitive type"
+	}
+	// what should the example name be?
+	exName := fmt.Sprintf("%v", value)
+	// Param already found, add as another example
+	if p.Name != "" {
+		p.Examples[exName] = Example{Value: value, Desc: errMsg}
+		return r
+	}
+	p.Name = name
+	p.In = "path"
+	if errMsg != "" {
+		p.Desc = errMsg
+		return r
+	}
+
+	s := buildSchema(value)
+	p.Schema = &s
+	p.Examples = map[string]Example{exName: {Value: value}}
+
+	return r
+}
+
+func isPrimitive(v any) bool {
+	kind := reflect.ValueOf(v).Kind()
+	if kind == reflect.Pointer {
+		kind = reflect.ValueOf(v).Type().Elem().Kind()
+	}
+	switch kind {
+	case reflect.Struct, reflect.Slice, reflect.Array, reflect.Map:
+		return false
+	default:
+		return true
+	}
+}
+
+func (r *Route) AddPathParams(params map[string]any) *Route {
+	for k, v := range params {
+		kind := reflect.ValueOf(v).Kind()
+
+		// if the value is a slice of all the same kind (no any/interface type)
+		// then go through each value and add it to the Param as an example
+		if kind == reflect.Array || kind == reflect.Slice {
+			sliceKind := reflect.ValueOf(v).Type().Elem().Kind()
+			if sliceKind == reflect.Interface || sliceKind == reflect.Map ||
+				sliceKind == reflect.Array || sliceKind == reflect.Slice ||
+				sliceKind == reflect.Struct {
+				r.AddPathParam(k, v)
+				continue
+			}
+			val := reflect.ValueOf(v)
+			for i := 0; i < val.Len(); i++ {
+				r.AddPathParam(k, val.Index(i).Interface())
+			}
+			continue
+		}
+
+		r.AddPathParam(k, v)
+	}
 	return r
 }
 

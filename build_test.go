@@ -3,7 +3,9 @@ package openapi
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"github.com/hydronica/trial"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -235,14 +237,109 @@ func TestBuildSchema(t *testing.T) {
 	trial.New(fn, cases).SubTest(t)
 }
 
-func TestBuilder(t *testing.T) {
+func TestAddPathParams(t *testing.T) {
+	type input struct {
+		vals map[string]any
+		path string
+	}
+	fn := func(in input) ([]Param, error) {
+		r := &Route{
+			path: in.path,
+		}
+		r.AddPathParams(in.vals)
+		return r.Params.List(), nil
+	}
+	cases := trial.Cases[input, []Param]{
+		"basic": {
+			Input: input{
+				path: "/{abc}/{count}/{amount}",
+				vals: map[string]any{
+					"abc":    "hello",
+					"amount": 12.76,
+					"count":  12,
+				},
+			},
+			Expected: []Param{
+				{In: "path", Name: "abc", Schema: &Schema{Type: String},
+					Examples: map[string]Example{"hello": {Value: "hello"}}},
+				{In: "path", Name: "amount", Schema: &Schema{Type: Number},
+					Examples: map[string]Example{"12.76": {Value: 12.76}}},
+				{In: "path", Name: "count", Schema: &Schema{Type: Integer},
+					Examples: map[string]Example{"12": {Value: 12}}},
+			},
+		},
+		"invalid_type": {
+			Input: input{
+				path: "/{myStruct}/{map}",
+				vals: map[string]any{
+					"myStruct": struct{ Name string }{},
+					"map":      map[string]int{},
+				},
+			},
+			Expected: []Param{
+				{In: "path", Name: "map", Desc: "must be primitive type"},
+				{In: "path", Name: "myStruct", Desc: "must be primitive type"},
+			},
+		},
+		"not in path": {
+			Input: input{
+				path: "/path/to/api",
+				vals: map[string]any{
+					"apple": 123,
+				},
+			},
+			Expected: []Param{
+				{In: "path", Name: "apple", Desc: "err: not found in path",
+					Examples: map[string]Example{"123": {Value: 123}},
+				},
+			},
+		},
+		"n examples": {
+			Input: input{
+				path: "/{fruit}/",
+				vals: map[string]any{
+					"fruit": []string{"apple", "banana", "nectarine", "peach"},
+				},
+			},
+			Expected: []Param{
+				{
+					In:     "path",
+					Name:   "fruit",
+					Schema: &Schema{Type: String},
+					Examples: map[string]Example{
+						"apple":     {Value: "apple"},
+						"banana":    {Value: "banana"},
+						"nectarine": {Value: "nectarine"},
+						"peach":     {Value: "peach"},
+					},
+				},
+			},
+		},
+	}
+	trial.New(fn, cases).SubTest(t)
+}
+
+func TestParsePath(t *testing.T) {
+	fn := func(in string) ([]string, error) {
+		return parsePath(in), nil
+	}
+	cases := trial.Cases[string, []string]{
+		"brackets": {
+			Input:    "/cars/{carId}/drivers/{driverId}",
+			Expected: []string{"carId", "driverId"},
+		},
+	}
+	trial.New(fn, cases).SubTest(t)
+}
+
+func ExampleBuilder() {
 
 	type tStruct struct {
 		Name string `json:"name"`
 		Int  int    `json:"count"`
 	}
 
-	doc := New2("doc", "1.0.0", "about me")
+	doc := New("doc", "1.0.0", "about me")
 	doc.GetRoute("/path/v1", "GET").
 		AddResponse(
 			Response{Status: 200}.WithStruct(tStruct{
@@ -252,28 +349,13 @@ func TestBuilder(t *testing.T) {
 
 	b, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
-		t.Fatal(err)
+		log.Fatal(err)
 	}
-	t.Log(string(b))
+	fmt.Println(string(b))
 }
 
 //go:embed swagger.example.json
 var jsonfile string
-
-func TestNewFromJson2(t *testing.T) {
-	doc, err := NewFromJson2(jsonfile)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	s := doc.JSON()
-	f, err := os.Create("./gen2.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.Write([]byte(s))
-	f.Close()
-}
 
 func TestNewFromJson(t *testing.T) {
 	doc, err := NewFromJson(jsonfile)

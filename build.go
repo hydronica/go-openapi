@@ -5,15 +5,18 @@ package openapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 	"time"
 )
 
-const Default = "default"
-
 func NewFromJson(spec string) (api *OpenAPI, err error) {
+	api = &OpenAPI{
+		Routes: make(router),
+	}
 	err = json.Unmarshal([]byte(spec), &api)
 	if err != nil {
 		return nil, fmt.Errorf("error with unmarshal %w", err)
@@ -29,24 +32,10 @@ func New(title, version, description string) *OpenAPI {
 			Version: version,
 			Desc:    description,
 		},
-		Tags:         make([]Tag, 0),
-		Paths:        map[string]OperationMap{}, // a map of methods mapped to operations i.e., get, put, post, delete
-		ExternalDocs: &ExternalDocs{},
+		Tags:   make([]Tag, 0),
+		Routes: make(router),
+		//ExternalDocs: &ExternalDocs{},
 	}
-}
-
-type Requests map[string]RequestBody // key is the reference name for the open api spec
-type Params map[string]Param
-
-type RouteParam struct {
-	Name      string          // unique name reference
-	Desc      string          // A brief description of the parameter. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
-	Required  bool            // is this paramater required
-	Location  string          // REQUIRED. The location of the parameter. Possible values are "query", "header", "path" or "cookie".
-	Type      Type            // the type for the param i.e., string, integer, float, array
-	ArrayType Type            // if the Type is an array then this decribes the type for each value in the array, i.e., string, integer, Float
-	Format    Format          // object format
-	Examples  []ExampleObject // example param values
 }
 
 type Method string
@@ -63,7 +52,6 @@ const (
 )
 
 type Type string
-type Format int
 
 const (
 	Integer Type = "integer"
@@ -74,43 +62,15 @@ const (
 	Array   Type = "array"
 )
 
+/*
+type Format string
 const (
-	Int32 Format = iota + 1
-	Int64
-	Float
-	Double
-	Byte     // base64 encoded characters
-	Binary   // any sequence of octets
-	Date     // full-date - https://www.rfc-editor.org/rfc/rfc3339#section-5.6
-	DateTime // date-time - https://www.rfc-editor.org/rfc/rfc3339#section-5.6
-	Password
-)
-
-func (f Format) String() string {
-	switch f {
-	case Int32:
-		return "int32"
-	case Int64:
-		return "int64"
-	case Float:
-		return "float"
-	case Double:
-		return "double"
-	case Byte:
-		return "byte"
-	case Binary:
-		return "binary"
-	case Date:
-		return "date"
-	case DateTime:
-		return "dateTime"
-	case Password:
-		return "password"
-	}
-	return ""
-}
-
-type Reference string
+	Int32 Format = "int32"
+	Int64 Format = "int64"
+	Date   Format = "date"  // full-date - https://www.rfc-editor.org/rfc/rfc3339#section-5.6
+	DateTime Format = "datetime" // date-time - https://www.rfc-editor.org/rfc/rfc3339#section-5.6
+	Password Format = "password"
+) */
 
 // common media types
 const (
@@ -124,237 +84,22 @@ const (
 	Form    MIMEType = "multipart/form-data"
 )
 
-type UniqueRoute struct {
-	Path   string
-	Method Method
-}
-
 func (o *OpenAPI) AddTags(t ...Tag) {
 	o.Tags = append(o.Tags, t...)
 }
 
 // AddRoute will add a new Route to the paths object for the openapi spec
 // A unique Route is need to add params, responses, and request objects
-func (o *OpenAPI) AddRoute(path, method, tag, desc, summary string) (ur UniqueRoute, err error) {
-	if tag == "" {
-		tag = Default
+func (o *OpenAPI) AddRoute(r *Route) error {
+	if r.path == "" || r.method == "" {
+		return errors.New("path or method cannot be empty")
 	}
-	if path == "" || method == "" {
-		return ur, fmt.Errorf("path and method cannot be an empty string")
-	}
-
-	ur = UniqueRoute{
-		Path:   path,
-		Method: Method(method),
+	key := r.path + "|" + r.method
+	if _, found := o.Routes[key]; found {
+		return errors.New("route already found use GetRoute to make changes")
 	}
 
-	// initialize the paths if nil
-	if o.Paths == nil {
-		o.Paths = make(Paths)
-	}
-
-	p, found := o.Paths[ur.Path]
-	if !found {
-		o.Paths[ur.Path] = make(OperationMap)
-		p = o.Paths[ur.Path]
-	}
-
-	m := p[ur.Method]
-	m.Desc = desc
-	m.Tags = append(m.Tags, tag)
-	m.OperationID = string(ur.Method) + "_" + ur.Path
-
-	p[ur.Method] = m
-	o.Paths[ur.Path] = p
-
-	return ur, nil
-}
-
-type ExampleObject struct {
-	Example any    // Example value
-	Name    string // object name
-	Summary string // short description summary
-	Desc    string // full (long) description
-}
-
-type BodyObject struct {
-	MIMEType   MIMEType        // the mimetype for the object
-	HttpStatus Code            // Any HTTP status code, '200', '201', '400' the value of 'default' can be used to cover all responses not defined
-	Examples   []ExampleObject // the response object examples used to determine the type and name of each field returned
-	Desc       string          // description of the body
-	Title      string          // object title
-}
-
-// NewRespBody is a helper function to create a response body object
-// example is a go object to represent the body
-func NewRespBody(mtype MIMEType, status Code, desc string, examples []ExampleObject) BodyObject {
-	return BodyObject{
-		MIMEType:   mtype,
-		HttpStatus: status,
-		Examples:   examples,
-		Desc:       desc,
-	}
-}
-
-// NewReqBody is a helper function to create a request body object
-// example is a go object to represent the body
-func NewReqBody(mtype MIMEType, desc string, examples []ExampleObject) BodyObject {
-	return BodyObject{
-		MIMEType: mtype,
-		Examples: examples,
-		Desc:     desc,
-	}
-}
-
-// AddParam adds a param object to the given unique Route
-func (o *OpenAPI) AddParam(ur UniqueRoute, rp RouteParam) error {
-	if rp.Name == "" || rp.Location == "" {
-		return fmt.Errorf("param name and location are required to add param")
-	}
-	p, found := o.Paths[ur.Path]
-	if !found {
-		return fmt.Errorf("could not find path to add param %v", ur)
-	}
-	m, found := p[ur.Method]
-	if !found {
-		return fmt.Errorf("could not find method to add param %v", ur)
-	}
-	param := Param{
-		Name: rp.Name,
-		Desc: rp.Desc,
-		In:   rp.Location,
-	}
-
-	if rp.Location == "path" {
-		param.Required = true
-		param.Style = "simple"
-	}
-
-	// if no type is given defaults to string
-	if rp.Type == "" {
-		param.Schema = &Schema{
-			Type: String,
-		}
-	} else {
-		param.Schema = &Schema{
-			Type: rp.Type,
-			//Format: rp.Format.String(),
-		}
-	}
-
-	param.Examples = make(map[string]Example)
-
-	for _, e := range rp.Examples {
-		param.Examples[e.Name] = Example{
-			Value:   e.Example,
-			Summary: e.Summary,
-			Desc:    e.Desc,
-		}
-	}
-
-	m.Params = append(m.Params, param)
-
-	p[ur.Method] = m
-	o.Paths[ur.Path] = p
-
-	return nil
-}
-
-// PathMethod is a helper method to pull the operation map out of the openapi paths map
-// then it pulls the operation struct out of the operation map for a fast reference to the operation struct
-func (o *OpenAPI) PathMethod(path string, method Method) (om OperationMap, op Operation, err error) {
-	om, found := o.Paths[path]
-	if !found {
-		return om, op, fmt.Errorf("could not find path to add param %v", path)
-	}
-	op, found = om[method]
-	if !found {
-		return om, op, fmt.Errorf("could not find method to add param %v", method)
-	}
-	return om, op, nil
-}
-
-// AddRequest will add a request object for the unique Route in the openapi receiver
-// adds an example and schema to the request body
-func (o *OpenAPI) AddRequest(ur UniqueRoute, bo BodyObject) error {
-	om, op, err := o.PathMethod(ur.Path, ur.Method)
-	if err != nil {
-		return err
-	}
-
-	examples := make(map[string]Example)
-	var rSchema Schema
-	if len(bo.Examples) > 0 {
-		rSchema = buildSchema(bo.Examples[0].Example)
-		for i, e := range bo.Examples {
-			if e.Name == "" {
-				e.Name = fmt.Sprintf("example: %d", i)
-			}
-			examples[e.Name] = Example{
-				Summary: e.Summary,
-				Desc:    e.Desc,
-				Value:   e.Example,
-			}
-		}
-	}
-
-	if op.RequestBody == nil {
-		op.RequestBody = &RequestBody{
-			Content: make(Content),
-		}
-	}
-
-	r := op.RequestBody.Content[bo.MIMEType]
-	r.Examples = examples
-	r.Schema = rSchema
-	r.Schema.Desc = bo.Desc
-	op.RequestBody.Content[bo.MIMEType] = r
-	om[ur.Method] = op
-	o.Paths[ur.Path] = om
-
-	return nil
-}
-
-// AddResponse adds response information to the api responses map which is part of the paths map
-// adds an example and schema to the response body
-func (o *OpenAPI) AddResponse(ur UniqueRoute, bo BodyObject) error {
-	om, op, err := o.PathMethod(ur.Path, ur.Method)
-	if err != nil {
-		return err
-	}
-	examples := make(map[string]Example)
-	var rSchema Schema
-	if len(bo.Examples) > 0 {
-		rSchema = buildSchema(bo.Examples[0].Example)
-		for i, e := range bo.Examples {
-			if e.Name == "" {
-				e.Name = fmt.Sprintf("example: %d", i+1)
-			}
-			examples[e.Name] = Example{
-				Summary: e.Summary,
-				Desc:    e.Desc,
-				Value:   e.Example,
-			}
-		}
-	}
-
-	if op.Responses == nil {
-		op.Responses = make(Responses)
-	}
-
-	r := op.Responses[bo.HttpStatus]
-	r.Desc = bo.Desc
-	r.Content = Content{
-		bo.MIMEType: {
-			Schema:   rSchema,
-			Examples: examples,
-		},
-	}
-
-	op.Responses[bo.HttpStatus] = r
-	om[ur.Method] = op
-	o.Paths[ur.Path] = om
-
+	o.Routes[key] = r
 	return nil
 }
 
@@ -475,26 +220,13 @@ func buildSchema(body any) (s Schema) {
 	return s
 }
 
-func reflect2Type(s string) Type {
-	switch s {
-	case "int":
-		return Integer
-	default:
-		return Type(s)
-	}
-}
-
-type TypeInfo struct {
-	Simple bool   // is the type a primitive type i.e., int, float, string, bool
-	Type   string // the type name if this is a primitive type
-	Format string // a format for the given type such as int64 int32 float
-}
-
 // JSON returns the json string value for the OpenAPI object
-func (o *OpenAPI) JSON() []byte {
-	b, _ := json.Marshal(o)
-	b, _ = JSONRemarshal(b)
-	return b
+func (o *OpenAPI) JSON() string {
+	b, err := json.MarshalIndent(o, "", "    ")
+	if err != nil {
+		log.Println(err)
+	}
+	return string(b)
 }
 
 // This will re-marshal the bytes so that the map key fields are sorted accordingly.
