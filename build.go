@@ -15,7 +15,7 @@ import (
 
 func NewFromJson(spec string) (api *OpenAPI, err error) {
 	api = &OpenAPI{
-		Routes: make(router),
+		Paths: make(router),
 	}
 	err = json.Unmarshal([]byte(spec), &api)
 	if err != nil {
@@ -32,8 +32,8 @@ func New(title, version, description string) *OpenAPI {
 			Version: version,
 			Desc:    description,
 		},
-		Tags:   make([]Tag, 0),
-		Routes: make(router),
+		Tags:  make([]Tag, 0),
+		Paths: make(router),
 		//ExternalDocs: &ExternalDocs{},
 	}
 }
@@ -95,11 +95,11 @@ func (o *OpenAPI) AddRoute(r *Route) error {
 		return errors.New("path or method cannot be empty")
 	}
 	key := r.path + "|" + r.method
-	if _, found := o.Routes[key]; found {
+	if _, found := o.Paths[key]; found {
 		return errors.New("route already found use GetRoute to make changes")
 	}
 
-	o.Routes[key] = r
+	o.Paths[key] = r
 	return nil
 }
 

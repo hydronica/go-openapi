@@ -237,22 +237,29 @@ func TestBuildSchema(t *testing.T) {
 	trial.New(fn, cases).SubTest(t)
 }
 
-func TestAddPathParams(t *testing.T) {
+func TestAddParams(t *testing.T) {
 	type input struct {
-		vals map[string]any
-		path string
+		vals   map[string]any
+		strVal any
+		path   string
+		pType  string
 	}
 	fn := func(in input) ([]Param, error) {
 		r := &Route{
 			path: in.path,
 		}
-		r.AddPathParams(in.vals)
+		if in.vals == nil || len(in.vals) == 0 {
+			r.AddParams(in.pType, in.strVal)
+		} else {
+			r.AddParams(in.pType, in.vals)
+		}
 		return r.Params.List(), nil
 	}
 	cases := trial.Cases[input, []Param]{
 		"basic": {
 			Input: input{
-				path: "/{abc}/{count}/{amount}",
+				pType: "path",
+				path:  "/{abc}/{count}/{amount}",
 				vals: map[string]any{
 					"abc":    "hello",
 					"amount": 12.76,
@@ -270,33 +277,37 @@ func TestAddPathParams(t *testing.T) {
 		},
 		"invalid_type": {
 			Input: input{
-				path: "/{myStruct}/{map}",
+				pType: "path",
+				path:  "/{myStruct}/{map}",
 				vals: map[string]any{
 					"myStruct": struct{ Name string }{},
 					"map":      map[string]int{},
 				},
 			},
 			Expected: []Param{
-				{In: "path", Name: "map", Desc: "must be primitive type"},
-				{In: "path", Name: "myStruct", Desc: "must be primitive type"},
+				{In: "path", Name: "map", Desc: "err: invalid type map|struct"},
+				{In: "path", Name: "myStruct", Desc: "err: invalid type map|struct"},
 			},
 		},
 		"not in path": {
 			Input: input{
-				path: "/path/to/api",
+				pType: "path",
+				path:  "/path/to/api",
 				vals: map[string]any{
 					"apple": 123,
 				},
 			},
 			Expected: []Param{
 				{In: "path", Name: "apple", Desc: "err: not found in path",
+					Schema:   &Schema{Type: Integer},
 					Examples: map[string]Example{"123": {Value: 123}},
 				},
 			},
 		},
 		"n examples": {
 			Input: input{
-				path: "/{fruit}/",
+				pType: "path",
+				path:  "/{fruit}/",
 				vals: map[string]any{
 					"fruit": []string{"apple", "banana", "nectarine", "peach"},
 				},
@@ -315,10 +326,66 @@ func TestAddPathParams(t *testing.T) {
 				},
 			},
 		},
+		"struct": {
+			Input: input{
+				pType: "path",
+				path:  "/{env}/{fruit}/{version}",
+				strVal: struct {
+					Env      string `json:"env"`
+					Fruit    string `json:"fruit"`
+					Version  int    `json:"version"`
+					unexport int
+					SkipMe   string `json:"-"`
+				}{Env: "dev", Fruit: "pineapple", Version: 12, SkipMe: "skip"},
+			},
+			Expected: []Param{
+				{
+					In:       "path",
+					Name:     "env",
+					Schema:   &Schema{Type: String},
+					Examples: map[string]Example{"dev": {Value: "dev"}},
+				},
+				{
+					In:       "path",
+					Name:     "fruit",
+					Schema:   &Schema{Type: String},
+					Examples: map[string]Example{"pineapple": {Value: "pineapple"}},
+				},
+				{
+					In:       "path",
+					Name:     "version",
+					Schema:   &Schema{Type: Integer},
+					Examples: map[string]Example{"12": {Value: 12}},
+				},
+			},
+		},
 	}
 	trial.New(fn, cases).SubTest(t)
 }
 
+func TestAddParam(t *testing.T) {
+	type input struct {
+		pType string
+		name  string
+		value any
+	}
+	fn := func(in input) ([]Param, error) {
+		r := &Route{}
+		r.AddParam(in.pType, in.name, in.value)
+		return r.Params.List(), nil
+	}
+	cases := trial.Cases[input, []Param]{
+		"*string": {
+			Input: input{pType: "query", name: "variety", value: trial.StringP("orange")},
+			Expected: []Param{
+				{Name: "variety", In: "query", Schema: &Schema{Type: String},
+					Examples: map[string]Example{"orange": {Value: "orange"}}},
+			},
+		},
+		"[]any": {},
+	}
+	trial.New(fn, cases).SubTest(t)
+}
 func TestParsePath(t *testing.T) {
 	fn := func(in string) ([]string, error) {
 		return parsePath(in), nil
@@ -342,10 +409,10 @@ func ExampleBuilder() {
 	doc := New("doc", "1.0.0", "about me")
 	doc.GetRoute("/path/v1", "GET").
 		AddResponse(
-			Response{Status: 200}.WithStruct(tStruct{
+			Response{Status: 200}.AddExample(tStruct{
 				Name: "apple", Int: 10,
 			})).
-		AddResponse(Response{Status: 400}.WithJSONString("abcdf")).AddRequest(RequestBody{Required: false}.WithStruct(tStruct{Name: "bob", Int: 1}))
+		AddResponse(Response{Status: 400}.WithJSONString("abcdf")).AddRequest(RequestBody{Required: false}.AddExample(tStruct{Name: "bob", Int: 1}))
 
 	b, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {

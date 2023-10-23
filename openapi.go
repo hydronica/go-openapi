@@ -12,7 +12,7 @@ type OpenAPI struct {
 	Servers []Server `json:"servers,omitempty"` // Array of Server Objects, which provide connectivity information to a target server.
 	Info    Info     `json:"info"`              // REQUIRED. Provides metadata about the API. The metadata MAY be used by tooling as required.
 	Tags    []Tag    `json:"tags,omitempty"`    // A list of tags used by the specification with additional metadata
-	Routes  router   `json:"paths"`             // key= path|method
+	Paths   router   `json:"paths"`             // key= path|method
 	//Components   Components    `json:"components,omitempty"`   // reuseable components not used here
 	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty"` //Additional external documentation.
 }

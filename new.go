@@ -84,10 +84,10 @@ func (r *Route) WithDetails(tag, summary string) *Route {
 // create a new Route if Route was not found.
 func (o *OpenAPI) GetRoute(path, method string) *Route {
 	key := path + "|" + method
-	r, found := o.Routes[key]
+	r, found := o.Paths[key]
 	if !found {
 		r = &Route{path: path, method: method}
-		o.Routes[key] = r
+		o.Paths[key] = r
 	}
 	return r
 }
@@ -108,17 +108,20 @@ func (r Response) WithJSONString(s string) Response {
 		}
 	}
 
-	return r.WithStruct(m)
+	return r.AddExample(m)
 }
 
-// WithStruct takes a struct and adds a json Content to the Response
-func (r Response) WithStruct(i any) Response {
+// AddExample takes a struct and adds a json Content to the Response
+func (r Response) AddExample(i any) Response {
 	m := r.Content[Json]
 	m.AddExample(i)
 	return r
 }
 
-// AddExample will add an example
+// AddExample will add an example object by
+// creating a schema based on the object i passed in.
+// The Example name will be the title of the Schema
+// and any description from added to the example as well.
 func (m *Media) AddExample(i any) {
 	if m.Examples == nil {
 		m.Examples = make(map[string]Example)
@@ -160,10 +163,10 @@ func (r RequestBody) WithJSONString(s string) RequestBody {
 		}
 	}
 
-	return r.WithStruct(m)
+	return r.AddExample(m)
 }
 
-func (r RequestBody) WithStruct(i any) RequestBody {
+func (r RequestBody) AddExample(i any) RequestBody {
 	m := r.Content[Json]
 	m.AddExample(i)
 	return r
@@ -174,57 +177,76 @@ func (r *Route) AddRequest(req RequestBody) *Route {
 	return r
 }
 
-func (r *Route) AddQueryParam() *Route {
-	return r
-}
-
-func (r *Route) AddHeaderParam() *Route {
-	return r
-}
-
-// AddPathParam adds the path params to the route
+// AddParam adds the given type params to the route
+// pType = path, cookie, query, header
 // It does not validate that the name is part of the path
 // or prevent duplicate paths from being added.
-func (r *Route) AddPathParam(name string, value any) *Route {
+// every element in value if it's a slice is added as an example.
+func (r *Route) AddParam(pType string, name string, value any) *Route {
+	key := pType + "|" + name
 	var p Param
-	defer func() {
-		r.Params[name] = p
-	}()
 	if r.Params == nil {
 		r.Params = make(Params)
 		for _, k := range parsePath(r.path) {
-			r.Params[k] = Param{}
+			r.Params["path|"+k] = Param{
+				Name:     k,
+				In:       "path",
+				Examples: make(map[string]Example),
+			}
 		}
 	}
-	p, found := r.Params[name]
+
+	p, found := r.Params[key]
 	if !found {
 		p = Param{
-			In: "path", Name: name, Desc: "err: not found in path",
+			In: pType, Name: name,
 			Examples: make(map[string]Example),
 		}
-	}
-	var errMsg string
-	if !isPrimitive(value) {
-		errMsg = "must be primitive type"
-	}
-	// what should the example name be?
-	exName := fmt.Sprintf("%v", value)
-	// Param already found, add as another example
-	if p.Name != "" {
-		p.Examples[exName] = Example{Value: value, Desc: errMsg}
-		return r
-	}
-	p.Name = name
-	p.In = "path"
-	if errMsg != "" {
-		p.Desc = errMsg
-		return r
+		if pType == "path" {
+			p.Desc = "err: not found in path"
+		}
+
 	}
 
-	s := buildSchema(value)
-	p.Schema = &s
-	p.Examples = map[string]Example{exName: {Value: value}}
+typeswitch:
+	switch reflect.ValueOf(value).Kind() {
+	case reflect.Slice, reflect.Array:
+		sliceVal := reflect.ValueOf(value)
+		// check if the slices' elemental type is a primitive
+		elemVal := reflect.New(sliceVal.Type().Elem()).Elem().Interface()
+		if !isPrimitive(elemVal) {
+			p.Desc = "err: invalid param, slice elem must be primitive"
+			break
+		}
+		if p.Schema == nil {
+			s := buildSchema(elemVal)
+			p.Schema = &s
+		}
+		for i := 0; i < sliceVal.Len(); i++ {
+			value = sliceVal.Index(i).Interface()
+			exName := fmt.Sprintf("%v", value)
+			p.Examples[exName] = Example{Value: value}
+		}
+	case reflect.Map, reflect.Struct:
+		p.Desc = "err: invalid type map|struct"
+	case reflect.Pointer:
+		rVal := reflect.ValueOf(value).Elem()
+		if rVal.Kind() == reflect.Map || rVal.Kind() == reflect.Struct {
+			p.Desc = "err: invalid type map|struct"
+			break
+		}
+		value = rVal.Interface()
+		goto typeswitch
+	default:
+		exName := fmt.Sprintf("%v", value)
+		if p.Schema == nil {
+			s := buildSchema(value)
+			p.Schema = &s
+		}
+		p.Examples[exName] = Example{Value: value}
+	}
 
+	r.Params[key] = p
 	return r
 }
 
@@ -234,39 +256,47 @@ func isPrimitive(v any) bool {
 		kind = reflect.ValueOf(v).Type().Elem().Kind()
 	}
 	switch kind {
-	case reflect.Struct, reflect.Slice, reflect.Array, reflect.Map:
+	case reflect.Struct, reflect.Slice, reflect.Array, reflect.Map, reflect.Interface:
 		return false
 	default:
 		return true
 	}
 }
 
-func (r *Route) AddPathParams(params map[string]any) *Route {
-	for k, v := range params {
-		kind := reflect.ValueOf(v).Kind()
+// AddParams add a given paramType (path, query, header, cookie) to the provided route.
+// the value may be a map[string]any with any primitive type or a slice of a single type.
+// or a struct where the fields represent the values of the param.
+func (r *Route) AddParams(pType string, value any) *Route {
+	val := reflect.ValueOf(value)
+	switch val.Kind() {
+	case reflect.Struct:
+		typ := val.Type()
+		// iterate through each field and add an example for each field. single depth only
+		for i := 0; i < val.NumField(); i++ {
+			field := typ.Field(i)
+			fVal := val.Field(i)
 
-		// if the value is a slice of all the same kind (no any/interface type)
-		// then go through each value and add it to the Param as an example
-		if kind == reflect.Array || kind == reflect.Slice {
-			sliceKind := reflect.ValueOf(v).Type().Elem().Kind()
-			if sliceKind == reflect.Interface || sliceKind == reflect.Map ||
-				sliceKind == reflect.Array || sliceKind == reflect.Slice ||
-				sliceKind == reflect.Struct {
-				r.AddPathParam(k, v)
+			name := strings.Replace(field.Tag.Get("json"), ",omitempty", "", 1)
+			//desc := field.Tag.Get("desc")
+
+			// skip unexported and ignored fields
+			if name == "-" || !fVal.CanInterface() {
 				continue
 			}
-			val := reflect.ValueOf(v)
-			for i := 0; i < val.Len(); i++ {
-				r.AddPathParam(k, val.Index(i).Interface())
+			if name == "" {
+				name = field.Name
 			}
-			continue
+			r.AddParam(pType, name, fVal.Interface())
 		}
-
-		r.AddPathParam(k, v)
+	case reflect.Map:
+		// iterate through the map and add each key/value pair. Slices are okay for adding multiple examples at the same time.
+		iter := val.MapRange()
+		for iter.Next() {
+			k, v := iter.Key(), iter.Value()
+			r.AddParam(pType, k.String(), v.Interface())
+		}
+	default: //primitives and slices.
+		// not supported
 	}
-	return r
-}
-
-func (r *Route) AddCookieParam() *Route {
 	return r
 }
