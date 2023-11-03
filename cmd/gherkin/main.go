@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -54,7 +56,7 @@ func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	// Create openAPI/Swagger doc
-	var doc *openapi.OpenAPI2
+	var doc *openapi.OpenAPI
 	if c.Base != "" {
 		f, err := os.Open(c.Base)
 		if err != nil {
@@ -65,12 +67,12 @@ func main() {
 			log.Fatalf("error reading base file %q: %v", c.Base, err)
 		}
 
-		doc, err = openapi.NewFromJson2(string(b))
+		doc, err = openapi.NewFromJson(string(b))
 		if err != nil {
 
 		}
 	} else {
-		doc = openapi.New2(c.Title, c.Version, c.Description)
+		doc = openapi.New(c.Title, c.Version, c.Description)
 	}
 
 	//read and process gherkin files
@@ -90,6 +92,16 @@ func main() {
 			log.Fatal(err)
 		}
 		r := extractTest(gherkinDocument)
+		if debug {
+			fName := strings.Split(filepath.Base(f), ".")[0]
+			gFil, _ := os.Create("debug/" + fName + ".gherkin.json")
+			tFil, _ := os.Create("debug/" + fName + ".test.json")
+
+			b, _ := json.MarshalIndent(gherkinDocument, "", "  ")
+			gFil.Write(b)
+			b, _ = json.MarshalIndent(r, "", "  ")
+			tFil.Write(b)
+		}
 		tests.addRoutes(r)
 	}
 
@@ -99,25 +111,26 @@ func main() {
 		path, method := s[0], s[1]
 		route := doc.GetRoute(path, method)
 		req := openapi.RequestBody{}
-		resp := make(openapi.Responses)
+
 		for _, ex := range examples {
 
-			r := resp[openapi.Code(ex.Status)]
-			r.Status = openapi.Code(ex.Status)
-			r.Desc = ex.Description
+			r := openapi.Response{
+				Status: openapi.Code(ex.Status),
+				Desc:   ex.Description,
+			}
 
 			if ex.ReqBody != "" {
-				req.WithJSONString(ex.ReqBody)
+				route.AddRequest(req.WithJSONString(ex.ReqBody))
 			}
 
 			if ex.RespBody != "" {
-				r.WithJSONString(ex.RespBody)
+				r = r.WithJSONString(ex.RespBody)
 			}
-			resp[openapi.Code(ex.Status)] = r
-		}
-		route.AddRequest(req)
-		for _, r := range resp {
 			route.AddResponse(r)
+
+			for k, v := range ex.params {
+				route.AddParam("query", k, v)
+			}
 		}
 	}
 
@@ -148,17 +161,27 @@ func extractTest(document *messages.GherkinDocument) routes {
 			for _, step := range child.Scenario.Steps {
 				switch step.KeywordType {
 				case "Context", "Conjunction":
-					switch step.Text {
-					case "body of request:":
+					if strings.Contains(step.Text, "body of request:") {
 						ex.ReqBody = step.DocString.Content
-					case "JSON response should be:":
+					} else if strings.Contains(step.Text, "JSON response should be:") {
 						ex.RespBody = step.DocString.Content
-					case "request headers:":
+					} else if strings.Contains(step.Text, "request headers:") {
 						ex.Header = processDataTable(step.DataTable)
-					default:
-						if debug {
-							log.Printf("Unknown Text: %v", step.Text)
+					} else if strings.Contains(step.Text, "content type should be") {
+						s := strings.Replace(step.Text, "content type should be", "", 1)
+						ex.ContentType = strings.Trim(s, "\\\" ")
+					} else if step.Text == "form data:" {
+						m := processDataTable(step.DataTable)
+						b, err := json.Marshal(m)
+						if err != nil {
+							if debug {
+								log.Println("error parsing form data ", step.Text, err)
+							}
+							continue
 						}
+						ex.ReqBody = string(b)
+					} else if debug {
+						log.Printf("Unknown Text: %v", step.Text)
 					}
 				case "Action":
 					if !regURL.MatchString(step.Text) {
@@ -167,7 +190,11 @@ func extractTest(document *messages.GherkinDocument) routes {
 					}
 					m := regURL.FindStringSubmatch(step.Text)
 					ex.method = strings.ToLower(m[1])
-					ex.path = m[2]
+					uri := m[2]
+					u, _ := url.Parse(uri)
+					ex.path = u.Path
+					ex.params = u.Query()
+
 				case "Outcome":
 					if after, found := strings.CutPrefix(step.Text, "The status code should be "); found {
 						i, err := strconv.Atoi(after)
@@ -263,10 +290,12 @@ func (r routes) addRoutes(new routes) {
 
 type Example struct {
 	path   string
+	params url.Values
 	method string
 
 	Name        string
 	Description string
+	ContentType string
 	Header      map[string]string
 	ReqBody     string
 

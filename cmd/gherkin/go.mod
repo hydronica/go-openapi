@@ -6,7 +6,7 @@ require (
 	github.com/cucumber/gherkin/go/v27 v27.0.0
 	github.com/cucumber/messages/go/v22 v22.0.0
 	github.com/hydronica/go-config v0.2.5
-	github.com/hydronica/go-openapi v0.1.13-8-g1e55a81
+	github.com/hydronica/go-openapi v0.1.13-12-g64c5596
 )
 
 require (
