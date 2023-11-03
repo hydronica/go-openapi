@@ -47,9 +47,9 @@ type Route struct {
 
 	Tag       []string          `json:"tags,omitempty"`
 	Summary   string            `json:"summary,omitempty"`
-	Responses map[Code]Response `json:"responses,omitempty"` // [status_code]Response
-	Params    Params            // key reference for params. key is name of Param
-	Requests  *RequestBody      `json:"requests,omitempty"` // key reference for requests
+	Responses map[Code]Response `json:"responses,omitempty"`   // [status_code]Response
+	Params    Params            `json:"parameters,omitempty"`  // key reference for params. key is name of Param
+	Requests  *RequestBody      `json:"requestBody,omitempty"` // key reference for requests
 
 	/* NOT CURRENTLY SUPPORT VALUES
 	// operationId is an optional unique string used to identify an operation
@@ -101,20 +101,23 @@ func (r Response) WithJSONString(s string) Response {
 	if err != nil {
 		// return a response with the error message
 		return Response{
-			Status:   r.Status,
-			MimeType: "invalid/json",
-			Desc:     err.Error(),
-			Content:  Content{"invalid/json": {Examples: map[string]Example{"invalid": {Value: s}}}},
+			Status: r.Status,
+			//MimeType: "invalid/json",
+			Desc:    err.Error(),
+			Content: Content{"invalid/json": {Examples: map[string]Example{"invalid": {Value: s}}}},
 		}
 	}
-
-	return r.AddExample(m)
+	return r.WithExample(m)
 }
 
-// AddExample takes a struct and adds a json Content to the Response
-func (r Response) AddExample(i any) Response {
+// WithExample takes a struct and adds a json Content to the Response
+func (r Response) WithExample(i any) Response {
+	if r.Content == nil {
+		r.Content = make(Content)
+	}
 	m := r.Content[Json]
 	m.AddExample(i)
+	r.Content[Json] = m
 	return r
 }
 
@@ -162,13 +165,16 @@ func (r RequestBody) WithJSONString(s string) RequestBody {
 			Content: Content{"invalid/json": {Examples: map[string]Example{"invalid": {Value: s}}}},
 		}
 	}
-
-	return r.AddExample(m)
+	return r.WithExample(m)
 }
 
-func (r RequestBody) AddExample(i any) RequestBody {
+func (r RequestBody) WithExample(i any) RequestBody {
+	if r.Content == nil {
+		r.Content = make(Content)
+	}
 	m := r.Content[Json]
 	m.AddExample(i)
+	r.Content[Json] = m
 	return r
 }
 

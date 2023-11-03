@@ -399,6 +399,77 @@ func TestParsePath(t *testing.T) {
 	trial.New(fn, cases).SubTest(t)
 }
 
+func TestAddResponse(t *testing.T) {
+	doc := New("t", "v", "desc")
+	route := doc.GetRoute("/test", "GET")
+	route.AddResponse(Response{
+		Status: 200,
+		Desc:   "resp desc",
+	}.WithJSONString(`{"status":"ok"}`))
+	route.AddResponse(Response{Status: 400}.WithExample(struct{ Error string }{Error: "invalid request"}))
+
+	eq, diff := trial.Equal(route, &Route{
+		path:    "/test",
+		method:  "GET",
+		Tag:     nil,
+		Summary: "",
+		Responses: Responses{
+			200: {
+				Status: 200,
+				Desc:   "resp desc",
+				Content: Content{Json: Media{
+					Schema: Schema{
+						Type:       Object,
+						Title:      "map[string]interface {}",
+						Properties: map[string]Schema{"status": {Type: "string"}},
+					},
+					Examples: map[string]Example{
+						"map[string]interface {}": {
+							Value: map[string]any{"status": "ok"},
+						},
+					},
+				}},
+			},
+			400: {
+				Status: 400,
+				Content: Content{Json: Media{
+					Schema: Schema{
+						Title:      "struct { Error string }",
+						Type:       "object",
+						Properties: map[string]Schema{"Error": {Type: "string"}},
+					},
+					Examples: map[string]Example{
+						"struct { Error string }": {
+							Value: struct{ Error string }{Error: "invalid request"},
+						},
+					},
+				}},
+			},
+		},
+	})
+	if !eq {
+		t.Logf(diff)
+		t.Fail()
+	}
+
+}
+func TestAddRequest(t *testing.T) {
+	type form struct {
+		Name  string
+		Value float32
+		Count int
+	}
+	doc := New("t", "v", "desc")
+	route := doc.GetRoute("/test", "GET")
+	route.AddRequest(RequestBody{
+		Desc: "custom Request",
+	}.WithJSONString(`{"Name":"hello world"}`))
+	route.AddRequest(RequestBody{}.WithExample(form{Name: "bob", Value: 12.34, Count: -10}))
+	if len(route.Requests.Content) == 2 {
+		t.Fatalf("Expected two Requests to be added but got", len(route.Requests.Content))
+	}
+}
+
 func ExampleBuilder() {
 
 	type tStruct struct {
@@ -409,10 +480,10 @@ func ExampleBuilder() {
 	doc := New("doc", "1.0.0", "about me")
 	doc.GetRoute("/path/v1", "GET").
 		AddResponse(
-			Response{Status: 200}.AddExample(tStruct{
+			Response{Status: 200}.WithExample(tStruct{
 				Name: "apple", Int: 10,
 			})).
-		AddResponse(Response{Status: 400}.WithJSONString("abcdf")).AddRequest(RequestBody{Required: false}.AddExample(tStruct{Name: "bob", Int: 1}))
+		AddResponse(Response{Status: 400}.WithJSONString("abcdf")).AddRequest(RequestBody{Required: false}.WithExample(tStruct{Name: "bob", Int: 1}))
 
 	b, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {

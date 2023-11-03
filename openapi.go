@@ -58,12 +58,12 @@ func (p Params) List() []Param {
 	return l
 }
 
-func (p Params) MarshalText() ([]byte, error) {
+func (p Params) MarshalJSON() ([]byte, error) {
 	l := p.List()
 	return json.Marshal(l)
 }
 
-func (p *Params) UnmarshalText(b []byte) error {
+func (p *Params) UnmarshalJSON(b []byte) error {
 	l := make([]Param, 0)
 	err := json.Unmarshal(b, &l)
 	if err != nil {
@@ -80,11 +80,11 @@ type Responses map[Code]Response
 
 // Response describes a single response from an API Operation
 type Response struct {
-	Status   Code     `json:"-"`
-	MimeType MIMEType `json:"-"`
+	Status Code `json:"-"`
+	//MimeType MIMEType `json:"-"`
 
-	Desc    string  `json:"description,omitempty"` // A short description of the response. CommonMark syntax MAY be used for rich text representation.
-	Content Content `json:"content,omitempty"`     // A map containing descriptions of potential response payloads. The key is a media type or media type range and the value describes it.
+	Desc    string  `json:"description"`       // Required A short description of the response. CommonMark syntax MAY be used for rich text representation.
+	Content Content `json:"content,omitempty"` // A map containing descriptions of potential response payloads. The key is a media type or media type range and the value describes it.
 }
 
 type Media struct {
