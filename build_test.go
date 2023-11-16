@@ -2,11 +2,7 @@ package openapi
 
 import (
 	_ "embed"
-	"encoding/json"
-	"fmt"
 	"github.com/hydronica/trial"
-	"log"
-	"os"
 	"testing"
 	"time"
 )
@@ -382,7 +378,12 @@ func TestAddParam(t *testing.T) {
 					Examples: map[string]Example{"orange": {Value: "orange"}}},
 			},
 		},
-		"[]any": {},
+		"any slice": {
+			Input: input{pType: "query", name: "list", value: []any{1, "apple", 2, "banana"}},
+			Expected: []Param{
+				{Name: "list", Desc: "err: invalid param, slice elem must be primitive", In: "query"},
+			},
+		},
 	}
 	trial.New(fn, cases).SubTest(t)
 }
@@ -453,6 +454,11 @@ func TestAddResponse(t *testing.T) {
 	}
 
 }
+
+func TestCompile(t *testing.T) {
+
+}
+
 func TestAddRequest(t *testing.T) {
 	type form struct {
 		Name  string
@@ -466,46 +472,26 @@ func TestAddRequest(t *testing.T) {
 	}.WithJSONString(`{"Name":"hello world"}`))
 	route.AddRequest(RequestBody{}.WithExample(form{Name: "bob", Value: 12.34, Count: -10}))
 	if len(route.Requests.Content) == 2 {
-		t.Fatalf("Expected two Requests to be added but got", len(route.Requests.Content))
+		t.Fatalf("expected two Requests to be added but got %v", len(route.Requests.Content))
 	}
 }
 
-func ExampleBuilder() {
+func TestMarshalRoute(t *testing.T) {
 
-	type tStruct struct {
-		Name string `json:"name"`
-		Int  int    `json:"count"`
+	fn := func(r router) (string, error) {
+		b, err := r.MarshalJSON()
+		return string(b), err
 	}
-
-	doc := New("doc", "1.0.0", "about me")
-	doc.GetRoute("/path/v1", "GET").
-		AddResponse(
-			Response{Status: 200}.WithExample(tStruct{
-				Name: "apple", Int: 10,
-			})).
-		AddResponse(Response{Status: 400}.WithJSONString("abcdf")).AddRequest(RequestBody{Required: false}.WithExample(tStruct{Name: "bob", Int: 1}))
-
-	b, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
-		log.Fatal(err)
+	cases := trial.Cases[router, string]{
+		"multi-method": {
+			Input: router{
+				"my/path|get":    &Route{},
+				"my/path|delete": &Route{},
+				"my/path|put":    &Route{},
+			},
+			Expected: `{"my/path":{"delete":{},"get":{},"put":{}}}`,
+		},
 	}
-	fmt.Println(string(b))
-}
+	trial.New(fn, cases).SubTest(t)
 
-//go:embed swagger.example.json
-var jsonfile string
-
-func TestNewFromJson(t *testing.T) {
-	doc, err := NewFromJson(jsonfile)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	s := doc.JSON()
-	f, err := os.Create("./gen.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.Write([]byte(s))
-	f.Close()
 }

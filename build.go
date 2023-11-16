@@ -5,7 +5,6 @@ package openapi
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"reflect"
@@ -86,21 +85,6 @@ const (
 
 func (o *OpenAPI) AddTags(t ...Tag) {
 	o.Tags = append(o.Tags, t...)
-}
-
-// AddRoute will add a new Route to the paths object for the openapi spec
-// A unique Route is need to add params, responses, and request objects
-func (o *OpenAPI) AddRoute(r *Route) error {
-	if r.path == "" || r.method == "" {
-		return errors.New("path or method cannot be empty")
-	}
-	key := r.path + "|" + r.method
-	if _, found := o.Paths[key]; found {
-		return errors.New("route already found use GetRoute to make changes")
-	}
-
-	o.Paths[key] = r
-	return nil
 }
 
 // BuildSchema will create a schema object based on a given example object interface
@@ -220,21 +204,44 @@ func buildSchema(body any) (s Schema) {
 	return s
 }
 
+// Compile the OpenAPI object by going through all
+// objects and consolidating schemas and return a
+// error of issues found
+func (o *OpenAPI) Compile() error {
+	AddComponent := func(s *Schema) {
+		if s.Type != Object {
+			return
+		}
+		if _, found := o.Components.Schemas[s.Title]; !found {
+			o.Components.Schemas[s.Title] = *s
+		}
+		s.Ref = "#/components/schemas/" + s.Title
+		s.Items = nil
+		s.Properties = nil
+	}
+
+	for _, r := range o.Paths {
+		for _, c := range r.Requests.Content {
+			AddComponent(&c.Schema)
+		}
+		for _, resp := range r.Responses {
+			for _, c := range resp.Content {
+				AddComponent(&c.Schema)
+			}
+		}
+	}
+	return nil
+}
+
 // JSON returns the json string value for the OpenAPI object
 func (o *OpenAPI) JSON() string {
+	return string(o.JSONBytes())
+}
+
+func (o *OpenAPI) JSONBytes() []byte {
 	b, err := json.MarshalIndent(o, "", "    ")
 	if err != nil {
 		log.Println(err)
 	}
-	return string(b)
-}
-
-// This will re-marshal the bytes so that the map key fields are sorted accordingly.
-func JSONRemarshal(bytes []byte) ([]byte, error) {
-	var ifce interface{}
-	err := json.Unmarshal(bytes, &ifce)
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(ifce)
+	return b
 }
