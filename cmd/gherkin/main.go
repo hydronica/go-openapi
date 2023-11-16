@@ -102,6 +102,7 @@ func main() {
 			b, _ = json.MarshalIndent(r, "", "  ")
 			tFil.Write(b)
 		}
+
 		tests.addRoutes(r)
 	}
 
@@ -109,9 +110,15 @@ func main() {
 	for k, examples := range tests {
 		s := strings.Split(k, "|")
 		path, method := s[0], s[1]
+		if path == "" && method == "" {
+			for _, ex := range examples {
+				log.Printf("Skip: %v", ex.Name)
+			}
+			continue
+		}
 		route := doc.GetRoute(path, method)
-		req := openapi.RequestBody{}
 
+		req := openapi.RequestBody{}
 		for _, ex := range examples {
 
 			r := openapi.Response{
@@ -171,6 +178,10 @@ func extractTest(document *messages.GherkinDocument) routes {
 						s := strings.Replace(step.Text, "content type should be", "", 1)
 						ex.ContentType = strings.Trim(s, "\\\" ")
 					} else if step.Text == "form data:" {
+						if step.DataTable == nil {
+							ex.ReqBody = step.DocString.Content
+							continue
+						}
 						m := processDataTable(step.DataTable)
 						b, err := json.Marshal(m)
 						if err != nil {
@@ -180,6 +191,13 @@ func extractTest(document *messages.GherkinDocument) routes {
 							continue
 						}
 						ex.ReqBody = string(b)
+					} else if regURL.MatchString(step.Text) {
+						m := regURL.FindStringSubmatch(step.Text)
+						ex.method = strings.ToLower(m[1])
+						uri := m[2]
+						u, _ := url.Parse(uri)
+						ex.path = u.Path
+						ex.params = u.Query()
 					} else if debug {
 						log.Printf("Unknown Text: %v", step.Text)
 					}
@@ -203,6 +221,15 @@ func extractTest(document *messages.GherkinDocument) routes {
 							continue
 						}
 						ex.Status = i
+					} else if after, found := strings.CutPrefix(step.Text, "I should see the following JSON error message with code"); found {
+						after = strings.Trim(after, " \\\":")
+						i, err := strconv.Atoi(after)
+						if err != nil && debug {
+							log.Printf("unknown status error %q", after)
+							continue
+						}
+						ex.Status = i
+						ex.Description = step.DocString.Content
 					}
 				default:
 					if debug {
