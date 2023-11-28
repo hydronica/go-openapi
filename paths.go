@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-type router map[string]*Route
+type Router map[string]*Route
 
 // Route is a simplified definition for managing routes in code
 type Route struct {
@@ -34,7 +34,11 @@ type Route struct {
 	*/
 }
 
-func (r router) MarshalJSON() ([]byte, error) {
+func (r Route) key() string {
+	return r.path + "|" + r.method
+}
+
+func (r Router) MarshalJSON() ([]byte, error) {
 	data := make(map[string]map[string]*Route)
 	for k, v := range r {
 		s := strings.Split(k, "|")
@@ -49,7 +53,7 @@ func (r router) MarshalJSON() ([]byte, error) {
 	return json.Marshal(data)
 }
 
-func (r router) UnmarshalJSON(b []byte) error {
+func (r Router) UnmarshalJSON(b []byte) error {
 	data := make(map[string]map[string]*Route)
 	if err := json.Unmarshal(b, &data); err != nil {
 		return err
@@ -91,7 +95,20 @@ func (o *OpenAPI) GetRoute(path, method string) *Route {
 	key := path + "|" + method
 	r, found := o.Paths[key]
 	if !found {
-		r = &Route{path: path, method: method}
+		r = &Route{
+			path:   path,
+			method: method,
+			Params: make(Params),
+		}
+
+		// Add any path params
+		for _, k := range parsePath(r.path) {
+			r.Params["path|"+k] = Param{
+				Name:     k,
+				In:       "path",
+				Examples: make(map[string]Example),
+			}
+		}
 		o.Paths[key] = r
 	}
 	return r
@@ -293,7 +310,6 @@ func (r *Route) AddParam(pType string, name string, value any) *Route {
 			}
 		}
 	}
-
 	p, found := r.Params[key]
 	if !found {
 		p = Param{

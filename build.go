@@ -6,6 +6,7 @@ package openapi
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/jbsmith7741/go-tools/appenderr"
 	"log"
 	"reflect"
 	"strings"
@@ -14,7 +15,7 @@ import (
 
 func NewFromJson(spec string) (api *OpenAPI, err error) {
 	api = &OpenAPI{
-		Paths: make(router),
+		Paths: make(Router),
 	}
 	err = json.Unmarshal([]byte(spec), &api)
 	if err != nil {
@@ -32,7 +33,7 @@ func New(title, version, description string) *OpenAPI {
 			Desc:    description,
 		},
 		Tags:  make([]Tag, 0),
-		Paths: make(router),
+		Paths: make(Router),
 		//ExternalDocs: &ExternalDocs{},
 	}
 }
@@ -124,7 +125,6 @@ func buildSchema(body any) (s Schema) {
 		}
 
 	case reflect.Struct:
-		// todo: when to ref rather than embed?
 		// these are special cases for time strings
 		// that may have formatting (time.Time default is RFC3339)
 		switch value.Interface().(type) {
@@ -208,29 +208,52 @@ func buildSchema(body any) (s Schema) {
 // objects and consolidating schemas and return a
 // error of issues found
 func (o *OpenAPI) Compile() error {
-	AddComponent := func(s *Schema) {
-		if s.Type != Object {
-			return
-		}
-		if _, found := o.Components.Schemas[s.Title]; !found {
-			o.Components.Schemas[s.Title] = *s
-		}
-		s.Ref = "#/components/schemas/" + s.Title
-		s.Items = nil
-		s.Properties = nil
+	if o.Components.Schemas == nil {
+		o.Components.Schemas = make(map[string]Schema)
 	}
-
+	errs := appenderr.New()
 	for _, r := range o.Paths {
-		for _, c := range r.Requests.Content {
-			AddComponent(&c.Schema)
-		}
-		for _, resp := range r.Responses {
-			for _, c := range resp.Content {
-				AddComponent(&c.Schema)
+		if r.Requests != nil {
+			for k, c := range r.Requests.Content {
+				if k == "invalid/json" {
+					errs.Addf("invalid json %v request at %v: %q", r.method, r.path, c.Examples["invalid"].Value)
+					continue
+				}
+				if c.Schema.Type != Object {
+					continue
+				}
+				if _, found := o.Components.Schemas[c.Schema.Title]; !found {
+					o.Components.Schemas[c.Schema.Title] = c.Schema
+				}
+				c.Schema = Schema{Ref: "#/components/schemas/" + c.Schema.Title}
+				r.Requests.Content[k] = c
 			}
 		}
+		for _, resp := range r.Responses {
+			for k, c := range resp.Content {
+				if k == "invalid/json" {
+					errs.Addf("invalid json %v response at %v: %q", r.method, r.path, c.Examples["invalid"].Value)
+					continue
+				}
+				if c.Schema.Type != Object {
+					continue
+				}
+				if _, found := o.Components.Schemas[c.Schema.Title]; !found {
+					o.Components.Schemas[c.Schema.Title] = c.Schema
+				}
+				c.Schema = Schema{Ref: "#/components/schemas/" + c.Schema.Title}
+				resp.Content[k] = c
+			}
+		}
+
+		for _, p := range r.Params {
+			if strings.Contains(p.Desc, "err:") {
+				errs.Addf("%v param %v| %v", p.In, p.Name, p.Desc)
+			}
+
+		}
 	}
-	return nil
+	return errs.ErrOrNil()
 }
 
 // JSON returns the json string value for the OpenAPI object

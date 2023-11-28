@@ -140,7 +140,9 @@ func main() {
 			}
 		}
 	}
-
+	if err := doc.Compile(); err != nil {
+		log.Println(err)
+	}
 	// generate the output swagger doc
 	f, err := os.Create(c.Out)
 	if err != nil {

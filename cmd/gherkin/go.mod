@@ -14,7 +14,7 @@ require (
 	github.com/gofrs/uuid v4.3.1+incompatible // indirect
 	github.com/hydronica/toml v0.4.1 // indirect
 	github.com/iancoleman/strcase v0.1.2 // indirect
-	github.com/jbsmith7741/go-tools v0.4.0 // indirect
+	github.com/jbsmith7741/go-tools v0.4.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

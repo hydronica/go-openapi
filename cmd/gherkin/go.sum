@@ -23,6 +23,7 @@ github.com/iancoleman/strcase v0.1.2 h1:gnomlvw9tnV3ITTAxzKSgTF+8kFWcU/f+TgttpXG
 github.com/iancoleman/strcase v0.1.2/go.mod h1:SK73tn/9oHe+/Y0h39VT4UCxmurVJkR5NA7kMEAOgSE=
 github.com/jbsmith7741/go-tools v0.4.0 h1:UpKLVkPQRZEvxec110Nh0f+GeOiRSHo5oCpw/eD3AHs=
 github.com/jbsmith7741/go-tools v0.4.0/go.mod h1:8v8ffjiI3qOs6epawzxmPB7AOKoNNxZHKPl2VUWXoyY=
+github.com/jbsmith7741/go-tools v0.4.1/go.mod h1:8v8ffjiI3qOs6epawzxmPB7AOKoNNxZHKPl2VUWXoyY=
 github.com/jbsmith7741/trial v0.3.1 h1:JZ0/w3lhfH4iacf9R2DnZWtTMa/Uf4O13gnuMLTub/M=
 github.com/jbsmith7741/trial v0.3.1/go.mod h1:M4FQWUgVpPY2+i53L2nSB0AyPc86kSTIigcr9Q7XQlY=
 github.com/lib/pq v1.8.0/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
