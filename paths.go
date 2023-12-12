@@ -34,7 +34,7 @@ type Route struct {
 	*/
 }
 
-func (r Route) key() string {
+func (r *Route) key() string {
 	return r.path + "|" + r.method
 }
 
@@ -83,10 +83,31 @@ func parsePath(path string) []string {
 	return r
 }
 
-func (r *Route) WithDetails(tag, summary string) *Route {
-	r.Tag = []string{tag}
-	r.Summary = summary
+func (r *Route) Tags(tag ...string) *Route {
+	r.Tag = tag
 	return r
+}
+
+// CleanPath will convert of go path like :var into
+// an approved openID path {var}
+func CleanPath(path string) string {
+	cnt := strings.Count(path, ":")
+	for c := 0; c < cnt; c++ {
+		i := strings.Index(path, ":")
+		if i == -1 {
+			break
+		}
+		a := path[i:]
+		e := strings.Index(a, "/")
+		if e == -1 {
+			e = len(a)
+		}
+		param := a[:e]
+
+		path = strings.Replace(path, param, "{"+param[1:]+"}", 1)
+	}
+
+	return path
 }
 
 // GetRoute associated with the path and method.
@@ -233,6 +254,8 @@ func (r *Route) AddRequest(req RequestBody) *Route {
 	return r
 }
 
+type ParamSetter func() Param
+
 type Params map[string]Param
 
 // Param see https://swagger.io/docs/specification/describing-parameters/
@@ -268,7 +291,7 @@ func (r *Route) AddParams(pType string, value any) *Route {
 			fVal := val.Field(i)
 
 			name := strings.Replace(field.Tag.Get("json"), ",omitempty", "", 1)
-			//desc := field.Tag.Get("desc")
+			desc := field.Tag.Get("desc")
 
 			// skip unexported and ignored fields
 			if name == "-" || !fVal.CanInterface() {
@@ -277,14 +300,14 @@ func (r *Route) AddParams(pType string, value any) *Route {
 			if name == "" {
 				name = field.Name
 			}
-			r.AddParam(pType, name, fVal.Interface())
+			r.AddParam(pType, name, desc, fVal.Interface())
 		}
 	case reflect.Map:
 		// iterate through the map and add each key/value pair. Slices are okay for adding multiple examples at the same time.
 		iter := val.MapRange()
 		for iter.Next() {
 			k, v := iter.Key(), iter.Value()
-			r.AddParam(pType, k.String(), v.Interface())
+			r.AddParam(pType, k.String(), "", v.Interface())
 		}
 	default: //primitives and slices.
 		// not supported
@@ -297,7 +320,7 @@ func (r *Route) AddParams(pType string, value any) *Route {
 // It does not validate that the name is part of the path
 // or prevent duplicate paths from being added.
 // every element in value if it's a slice is added as an example.
-func (r *Route) AddParam(pType string, name string, value any) *Route {
+func (r *Route) AddParam(pType, name, desc string, value any) *Route {
 	key := pType + "|" + name
 	var p Param
 	if r.Params == nil {
@@ -306,6 +329,7 @@ func (r *Route) AddParam(pType string, name string, value any) *Route {
 			r.Params["path|"+k] = Param{
 				Name:     k,
 				In:       "path",
+				Desc:     desc,
 				Examples: make(map[string]Example),
 			}
 		}
@@ -314,6 +338,7 @@ func (r *Route) AddParam(pType string, name string, value any) *Route {
 	if !found {
 		p = Param{
 			In: pType, Name: name,
+			Desc:     desc,
 			Examples: make(map[string]Example),
 		}
 		if pType == "path" {
@@ -332,16 +357,36 @@ typeswitch:
 			p.Desc = "err: invalid param, slice elem must be primitive"
 			break
 		}
+
+		for i := 0; i < sliceVal.Len(); i++ {
+			value = sliceVal.Index(i).Interface()
+			exName := fmt.Sprintf("%v", value)
+			if ex, ok := value.(Example); ok {
+				if ex.Summary != "" {
+					exName = ex.Summary
+				}
+				value = ex.Value
+				elemVal = value
+			}
+			p.Examples[exName] = Example{Value: value}
+		}
+
 		if p.Schema == nil {
 			s := buildSchema(elemVal)
 			p.Schema = &s
 		}
-		for i := 0; i < sliceVal.Len(); i++ {
-			value = sliceVal.Index(i).Interface()
-			exName := fmt.Sprintf("%v", value)
-			p.Examples[exName] = Example{Value: value}
+	case reflect.Struct:
+		if ex, ok := value.(Example); ok {
+			exName := ex.Summary
+			ex.Summary = ""
+			if exName == "" {
+				exName = fmt.Sprintf("%v", value)
+			}
+			p.Examples[exName] = ex
+			break typeswitch
 		}
-	case reflect.Map, reflect.Struct:
+		fallthrough
+	case reflect.Map:
 		p.Desc = "err: invalid type map|struct"
 	case reflect.Pointer:
 		rVal := reflect.ValueOf(value).Elem()
@@ -357,7 +402,10 @@ typeswitch:
 			s := buildSchema(value)
 			p.Schema = &s
 		}
-		p.Examples[exName] = Example{Value: value}
+		if !reflect.ValueOf(value).IsZero() {
+			p.Examples[exName] = Example{Value: value}
+		}
+
 	}
 
 	r.Params[key] = p
@@ -370,7 +418,10 @@ func isPrimitive(v any) bool {
 		kind = reflect.ValueOf(v).Type().Elem().Kind()
 	}
 	switch kind {
-	case reflect.Struct, reflect.Slice, reflect.Array, reflect.Map, reflect.Interface, reflect.Invalid:
+	case reflect.Struct:
+		_, ok := v.(Example)
+		return ok
+	case reflect.Slice, reflect.Array, reflect.Map, reflect.Interface, reflect.Invalid:
 		return false
 	default:
 		return true

@@ -7,20 +7,17 @@ import (
 
 func TestAddParams(t *testing.T) {
 	type input struct {
-		vals   map[string]any
-		strVal any
-		path   string
-		pType  string
+		value any
+		path  string
+		pType string
 	}
 	fn := func(in input) ([]Param, error) {
 		r := &Route{
 			path: in.path,
 		}
-		if in.vals == nil || len(in.vals) == 0 {
-			r.AddParams(in.pType, in.strVal)
-		} else {
-			r.AddParams(in.pType, in.vals)
-		}
+
+		r.AddParams(in.pType, in.value)
+
 		return r.Params.List(), nil
 	}
 	cases := trial.Cases[input, []Param]{
@@ -28,7 +25,7 @@ func TestAddParams(t *testing.T) {
 			Input: input{
 				pType: "path",
 				path:  "/{abc}/{count}/{amount}",
-				vals: map[string]any{
+				value: map[string]any{
 					"abc":    "hello",
 					"amount": 12.76,
 					"count":  12,
@@ -47,7 +44,7 @@ func TestAddParams(t *testing.T) {
 			Input: input{
 				pType: "path",
 				path:  "/{myStruct}/{map}",
-				vals: map[string]any{
+				value: map[string]any{
 					"myStruct": struct{ Name string }{},
 					"map":      map[string]int{},
 				},
@@ -61,7 +58,7 @@ func TestAddParams(t *testing.T) {
 			Input: input{
 				pType: "path",
 				path:  "/path/to/api",
-				vals: map[string]any{
+				value: map[string]any{
 					"apple": 123,
 				},
 			},
@@ -76,7 +73,7 @@ func TestAddParams(t *testing.T) {
 			Input: input{
 				pType: "path",
 				path:  "/{fruit}/",
-				vals: map[string]any{
+				value: map[string]any{
 					"fruit": []string{"apple", "banana", "nectarine", "peach"},
 				},
 			},
@@ -98,7 +95,7 @@ func TestAddParams(t *testing.T) {
 			Input: input{
 				pType: "path",
 				path:  "/{env}/{fruit}/{version}",
-				strVal: struct {
+				value: struct {
 					Env      string `json:"env"`
 					Fruit    string `json:"fruit"`
 					Version  int    `json:"version"`
@@ -127,6 +124,19 @@ func TestAddParams(t *testing.T) {
 				},
 			},
 		},
+		"struct_w_desc": {
+			Input: input{
+				pType: "query",
+				value: struct {
+					Name string `desc:"first name"`
+					ID   int    `desc:"unique identifier"`
+				}{},
+			},
+			Expected: []Param{
+				{In: "query", Name: "ID", Desc: "unique identifier", Schema: &Schema{Type: Integer}},
+				{In: "query", Name: "Name", Desc: "first name", Schema: &Schema{Type: String}},
+			},
+		},
 	}
 	trial.New(fn, cases).SubTest(t)
 }
@@ -135,11 +145,12 @@ func TestAddParam(t *testing.T) {
 	type input struct {
 		pType string
 		name  string
+		desc  string
 		value any
 	}
 	fn := func(in input) ([]Param, error) {
 		r := &Route{}
-		r.AddParam(in.pType, in.name, in.value)
+		r.AddParam(in.pType, in.name, in.desc, in.value)
 		return r.Params.List(), nil
 	}
 	cases := trial.Cases[input, []Param]{
@@ -156,6 +167,35 @@ func TestAddParam(t *testing.T) {
 				{Name: "list", Desc: "err: invalid param, slice elem must be primitive", In: "query"},
 			},
 		},
+		"Example struct": {
+			Input: input{pType: "query", name: "food",
+				value: Example{Summary: "fruit", Value: "apple"}},
+			Expected: []Param{
+				{Name: "food", In: "query", Examples: map[string]Example{"fruit": {Value: "apple"}}},
+			},
+		},
+		"Examples": {
+			Input: input{
+				pType: "query",
+				name:  "id",
+				value: []Example{
+					{Summary: "aid", Value: 1234},
+					{Summary: "bid", Value: 4444},
+					{Summary: "xid", Value: 9944},
+				},
+			},
+			Expected: []Param{
+				{
+					Name:   "id",
+					In:     "query",
+					Schema: &Schema{Type: Integer},
+					Examples: map[string]Example{
+						"aid": {Value: 1234},
+						"bid": {Value: 4444},
+						"xid": {Value: 9944},
+					}},
+			},
+		},
 	}
 	trial.New(fn, cases).SubTest(t)
 }
@@ -170,6 +210,37 @@ func TestParsePath(t *testing.T) {
 			Expected: []string{"carId", "driverId"},
 		},
 	}
+	trial.New(fn, cases).SubTest(t)
+}
+
+func TestCleanPath(t *testing.T) {
+	fn := func(path string) (string, error) {
+		return CleanPath(path), nil
+	}
+
+	cases := trial.Cases[string, string]{
+		"no_params": {
+			Input:    "/no/url/params",
+			Expected: "/no/url/params",
+		},
+		"one_param": {
+			Input:    "/test/:oneparam/route",
+			Expected: "/test/{oneparam}/route",
+		},
+		"end_param": {
+			Input:    "/test/me/:oneparam",
+			Expected: "/test/me/{oneparam}",
+		},
+		"two_params": {
+			Input:    "/test/params/:one/:two",
+			Expected: "/test/params/{one}/{two}",
+		},
+		"three_params": {
+			Input:    "/test/params/:one/:two/anything/:three",
+			Expected: "/test/params/{one}/{two}/anything/{three}",
+		},
+	}
+
 	trial.New(fn, cases).SubTest(t)
 }
 
