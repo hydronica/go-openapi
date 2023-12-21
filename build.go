@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/jbsmith7741/go-tools/appenderr"
+	"hash/crc64"
 	"log"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 )
@@ -120,9 +122,14 @@ func buildSchema(body any) (s Schema) {
 		if s.Properties == nil {
 			s.Properties = make(Properties)
 		}
+		sKeys := make([]string, 0, len(keys))
 		for _, k := range keys {
+			sKeys = append(sKeys, k.String())
 			s.Properties[k.String()] = buildSchema(value.MapIndex(k).Interface())
 		}
+		slices.Sort(sKeys)
+		// create a unique short, somewhat readable title
+		s.Title = hash16(strings.Join(sKeys, ""))
 
 	case reflect.Struct:
 		// these are special cases for time strings
@@ -202,6 +209,13 @@ func buildSchema(body any) (s Schema) {
 	}
 
 	return s
+}
+
+// hash16 creates 16 character checksum on the string provided.
+func hash16(s string) string {
+	hasher := crc64.New(crc64.MakeTable(crc64.ISO))
+	hasher.Write([]byte(s))
+	return fmt.Sprintf("%x", hasher.Sum64())
 }
 
 // Compile the OpenAPI object by going through all
