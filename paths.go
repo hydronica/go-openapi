@@ -179,20 +179,24 @@ func (r Response) WithJSONString(s string) Response {
 
 // WithExample takes a struct and adds a json Content to the Response
 func (r Response) WithExample(i any) Response {
+	return r.WithNamedExample("", i)
+}
+
+func (r Response) WithNamedExample(name string, i any) Response {
 	if r.Content == nil {
 		r.Content = make(Content)
 	}
 	m := r.Content[Json]
-	m.AddExample(i)
+	m.AddExample(name, i)
 	r.Content[Json] = m
 	return r
 }
 
 // AddExample will add an example object by
 // creating a schema based on the object i passed in.
-// The Example name will be the title of the Schema
+// The Example name will be the title of the Schema if not provided
 // and any description from added to the example as well.
-func (m *Media) AddExample(i any) {
+func (m *Media) AddExample(exName string, i any) {
 	if m.Examples == nil {
 		m.Examples = make(map[string]Example)
 	}
@@ -200,7 +204,9 @@ func (m *Media) AddExample(i any) {
 	if m.Schema.Title == "" {
 		m.Schema = schema
 	}
-	exName := schema.Title
+	if exName == "" {
+		exName = schema.Title
+	}
 	ex := Example{
 		Desc:  schema.Desc,
 		Value: i,
@@ -240,11 +246,15 @@ func (r RequestBody) WithJSONString(s string) RequestBody {
 }
 
 func (r RequestBody) WithExample(i any) RequestBody {
+	return r.WithNamedExample("", i)
+}
+
+func (r RequestBody) WithNamedExample(name string, i any) RequestBody {
 	if r.Content == nil {
 		r.Content = make(Content)
 	}
 	m := r.Content[Json]
-	m.AddExample(i)
+	m.AddExample(name, i)
 	r.Content[Json] = m
 	return r
 }
