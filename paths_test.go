@@ -265,11 +265,11 @@ func TestAddResponse(t *testing.T) {
 				Content: Content{Json: Media{
 					Schema: Schema{
 						Type:       Object,
-						Title:      "map[string]interface {}",
+						Title:      "2c69c864087c4000",
 						Properties: map[string]Schema{"status": {Type: "string"}},
 					},
 					Examples: map[string]Example{
-						"map[string]interface {}": {
+						"2c69c864087c4000": {
 							Value: map[string]any{"status": "ok"},
 						},
 					},

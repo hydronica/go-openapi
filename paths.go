@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// Router key is path|method
 type Router map[string]*Route
 
 // Route is a simplified definition for managing routes in code

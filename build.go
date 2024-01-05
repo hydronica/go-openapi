@@ -10,7 +10,7 @@ import (
 	"hash/crc64"
 	"log"
 	"reflect"
-	"slices"
+	"sort"
 	"strings"
 	"time"
 )
@@ -127,7 +127,7 @@ func buildSchema(body any) (s Schema) {
 			sKeys = append(sKeys, k.String())
 			s.Properties[k.String()] = buildSchema(value.MapIndex(k).Interface())
 		}
-		slices.Sort(sKeys)
+		sort.Strings(sKeys)
 		// create a unique short, somewhat readable title
 		s.Title = hash16(strings.Join(sKeys, ""))
 

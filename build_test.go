@@ -53,13 +53,13 @@ func TestBuildSchema(t *testing.T) {
 			},
 			Expected: Schema{
 				Type:  "object",
-				Title: "map[string]interface {}",
+				Title: "d048026ab7fb3f07",
 				Properties: map[string]Schema{
 					"customValues": {
 						Type: Array,
 						Items: &Schema{
 							Type:  Object,
-							Title: "map[string]interface {}",
+							Title: "6e1052120b0412c8",
 							Properties: map[string]Schema{
 								"adate":  {Type: "string"},
 								"avalue": {Type: "integer"},
@@ -67,7 +67,7 @@ func TestBuildSchema(t *testing.T) {
 						}},
 					"default": {
 						Type:  Object,
-						Title: "map[string][]float64",
+						Title: "502deb2d72175bcd",
 						Properties: map[string]Schema{
 							"monthTrans": {Type: Array, Items: &Schema{Type: Number}},
 							"monthProc":  {Type: Array, Items: &Schema{Type: Number}},
@@ -81,7 +81,7 @@ func TestBuildSchema(t *testing.T) {
 			},
 			Expected: Schema{
 				Type:       "object",
-				Title:      "map[string]string",
+				Title:      "2292dac000000000",
 				Properties: map[string]Schema{"key": {Type: "string"}},
 			},
 		},
@@ -91,7 +91,7 @@ func TestBuildSchema(t *testing.T) {
 			},
 			Expected: Schema{
 				Type:  Object,
-				Title: "map[string]openapi.Primitives",
+				Title: "2292dac000000000", // generated hash
 				Properties: map[string]Schema{
 					"key": {
 						Type:  "object",
