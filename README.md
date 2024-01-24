@@ -2,6 +2,9 @@
 A Go Lang SDK to help create OpenApi 3.0.3 Spec 
 
 [OpenAPI spec](https://swagger.io/specification/)
+
+[![codecov](https://codecov.io/gh/hydronica/go-openapi/graph/badge.svg?token=E3I51BL34W)](https://codecov.io/gh/hydronica/go-openapi)
+
 ## Getting Started 
 
 ``` go 

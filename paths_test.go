@@ -16,7 +16,7 @@ func TestAddParams(t *testing.T) {
 			path: in.path,
 		}
 
-		r.AddParams(in.pType, in.value)
+		r.addParams(in.pType, in.value)
 
 		return r.Params.List(), nil
 	}
@@ -150,7 +150,7 @@ func TestAddParam(t *testing.T) {
 	}
 	fn := func(in input) ([]Param, error) {
 		r := &Route{}
-		r.AddParam(in.pType, in.name, in.desc, in.value)
+		r.AddParam(in.pType, in.name, in.value, in.desc)
 		return r.Params.List(), nil
 	}
 	cases := trial.Cases[input, []Param]{

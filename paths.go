@@ -288,10 +288,38 @@ type Param struct {
 	//Required bool               `json:"required"`              // Determines whether this parameter is mandatory. If the parameter location is "path", this property is REQUIRED and its value MUST be true. Otherwise, the property MAY be included and its default value is false
 }
 
-// AddParams add a given paramType (path, query, header, cookie) to the provided route.
+// PathParams add multiple path params to the provided route.
 // the value may be a map[string]any with any primitive type or a slice of a single type.
 // or a struct where the fields represent the values of the param.
-func (r *Route) AddParams(pType string, value any) *Route {
+func (r *Route) PathParams(value any) *Route {
+	return r.addParams("path", value)
+}
+
+// CookieParams add multiple cookie params to the provided route.
+// the value may be a map[string]any with any primitive type or a slice of a single type.
+// or a struct where the fields represent the values of the param.
+func (r *Route) CookieParams(value any) *Route {
+	return r.addParams("cookie", value)
+}
+
+// QueryParams add multiple query params to the provided route.
+// the value may be a map[string]any with any primitive type or a slice of a single type.
+// or a struct where the fields represent the values of the param.
+func (r *Route) QueryParams(value any) *Route {
+	return r.addParams("query", value)
+}
+
+// HeaderParams add multiple header params to the provided route.
+// the value may be a map[string]any with any primitive type or a slice of a single type.
+// or a struct where the fields represent the values of the param.
+func (r *Route) HeaderParams(value any) *Route {
+	return r.addParams("header", value)
+}
+
+// addParams add a given paramType (path, query, header, cookie) to the provided route.
+// the value may be a map[string]any with any primitive type or a slice of a single type.
+// or a struct where the fields represent the values of the param.
+func (r *Route) addParams(pType string, value any) *Route {
 	val := reflect.ValueOf(value)
 	switch val.Kind() {
 	case reflect.Struct:
@@ -311,14 +339,14 @@ func (r *Route) AddParams(pType string, value any) *Route {
 			if name == "" {
 				name = field.Name
 			}
-			r.AddParam(pType, name, desc, fVal.Interface())
+			r.AddParam(pType, name, fVal.Interface(), desc)
 		}
 	case reflect.Map:
 		// iterate through the map and add each key/value pair. Slices are okay for adding multiple examples at the same time.
 		iter := val.MapRange()
 		for iter.Next() {
 			k, v := iter.Key(), iter.Value()
-			r.AddParam(pType, k.String(), "", v.Interface())
+			r.AddParam(pType, k.String(), v.Interface(), "")
 		}
 	default: //primitives and slices.
 		// not supported
@@ -326,12 +354,32 @@ func (r *Route) AddParams(pType string, value any) *Route {
 	return r
 }
 
+// PathParam adds an example Path Parameter to the Route (paths)
+func (r *Route) PathParam(name string, value any, desc string) *Route {
+	return r.AddParam("path", name, value, desc)
+}
+
+// CookieParam adds an example Path Parameter to the Route (paths)
+func (r *Route) CookieParam(name string, value any, desc string) *Route {
+	return r.AddParam("cookie", name, value, desc)
+}
+
+// QueryParam adds an example Path Parameter to the Route (paths)
+func (r *Route) QueryParam(name string, value any, desc string) *Route {
+	return r.AddParam("query", name, value, desc)
+}
+
+// HeaderParam adds an example Path Parameter to the Route (paths)
+func (r *Route) HeaderParam(name string, value any, desc string) *Route {
+	return r.AddParam("header", name, value, desc)
+}
+
 // AddParam adds the given type params to the route
 // pType = path, cookie, query, header
 // It does not validate that the name is part of the path
 // or prevent duplicate paths from being added.
 // every element in value if it's a slice is added as an example.
-func (r *Route) AddParam(pType, name, desc string, value any) *Route {
+func (r *Route) AddParam(pType, name string, value any, desc string) *Route {
 	key := pType + "|" + name
 	var p Param
 	if r.Params == nil {

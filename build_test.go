@@ -322,7 +322,7 @@ func TestCompile(t *testing.T) {
 			ExpectedErr: errors.New(`invalid json get response at test: "invalid"`),
 		},
 		"param-error": {
-			Input:       (&Route{path: "test", method: "get"}).AddParam("query", "name", "", abc{}),
+			Input:       (&Route{path: "test", method: "get"}).AddParam("query", "name", abc{}, ""),
 			ExpectedErr: errors.New("query param name| err"),
 		},
 	}

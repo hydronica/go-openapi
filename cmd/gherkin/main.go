@@ -81,13 +81,14 @@ func main() {
 		log.Fatal(err)
 	}
 	tests := make(routes)
+	uuid := &messages.UUID{}
 	for _, f := range files {
 		fileContent, err := os.ReadFile(f)
 		if err != nil {
 			log.Fatalf("read file %q err: %v", f, err)
 		}
 		reader := strings.NewReader(string(fileContent))
-		gherkinDocument, err := gherkin.ParseGherkinDocument(reader, newID)
+		gherkinDocument, err := gherkin.ParseGherkinDocument(reader, uuid.NewId)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -136,7 +137,7 @@ func main() {
 			route.AddResponse(r)
 
 			for k, v := range ex.params {
-				route.AddParam("query", k, v)
+				route.QueryParam(k, v, "")
 			}
 		}
 	}
@@ -149,13 +150,6 @@ func main() {
 		log.Fatalf("issue with writing %q: %w", c.Out, err)
 	}
 	f.Write([]byte(doc.JSON()))
-}
-
-var counter int
-
-func newID() string {
-	counter += 1
-	return "UUID" + strconv.Itoa(counter)
 }
 
 var regURL = regexp.MustCompile(".*(POST|GET|PUT|DELETE).*\\\"(.*)\\\"")
