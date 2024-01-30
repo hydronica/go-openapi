@@ -5,8 +5,8 @@ package openapi
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/jbsmith7741/go-tools/appenderr"
 	"hash/crc64"
 	"log"
 	"reflect"
@@ -225,12 +225,12 @@ func (o *OpenAPI) Compile() error {
 	if o.Components.Schemas == nil {
 		o.Components.Schemas = make(map[string]Schema)
 	}
-	errs := appenderr.New()
+	var errs error
 	for _, r := range o.Paths {
 		if r.Requests != nil {
 			for k, c := range r.Requests.Content {
 				if k == "invalid/json" {
-					errs.Addf("invalid json %v request at %v: %q", r.method, r.path, c.Examples["invalid"].Value)
+					errs = errors.Join(errs, fmt.Errorf("invalid json %v request at %v: %q", r.method, r.path, c.Examples["invalid"].Value))
 					continue
 				}
 				if c.Schema.Type != Object {
@@ -246,7 +246,7 @@ func (o *OpenAPI) Compile() error {
 		for _, resp := range r.Responses {
 			for k, c := range resp.Content {
 				if k == "invalid/json" {
-					errs.Addf("invalid json %v response at %v: %q", r.method, r.path, c.Examples["invalid"].Value)
+					errs = errors.Join(errs, fmt.Errorf("invalid json %v response at %v: %q", r.method, r.path, c.Examples["invalid"].Value))
 					continue
 				}
 				if c.Schema.Type != Object {
@@ -262,12 +262,12 @@ func (o *OpenAPI) Compile() error {
 
 		for _, p := range r.Params {
 			if strings.Contains(p.Desc, "err:") {
-				errs.Addf("%v param %v| %v", p.In, p.Name, p.Desc)
+				errs = errors.Join(errs, fmt.Errorf("%v param %v| %v", p.In, p.Name, p.Desc))
 			}
 
 		}
 	}
-	return errs.ErrOrNil()
+	return errs
 }
 
 // JSON returns the json string value for the OpenAPI object

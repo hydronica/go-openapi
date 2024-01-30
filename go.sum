@@ -1,14 +1,4 @@
-github.com/go-sql-driver/mysql v1.5.0/go.mod h1:DCzpHaOWr8IXmIStZouvnhqoel9Qv2LBy8hT2VhHyBg=
-github.com/google/go-cmp v0.4.1/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
-github.com/google/go-cmp v0.5.2/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
-github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
-github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
-github.com/hydronica/trial v0.5.0/go.mod h1:sfQjkbZWzxECJphMWtdc508UcJhYUvnw6LlGYsniGCg=
+github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/hydronica/trial v0.7.2 h1:JyqTaPjNMzKEfZp2aj15P+nOQNaoxDSwe8Pr2ybohXw=
 github.com/hydronica/trial v0.7.2/go.mod h1:f193eil48XkAgqr3UOifFyc8it0vYO83BYq20cAVSEs=
-github.com/jbsmith7741/go-tools v0.4.1 h1:qqHI0imezT1SLCd43df4sBZ44b4bndfo0W9R9B53/kA=
-github.com/jbsmith7741/go-tools v0.4.1/go.mod h1:8v8ffjiI3qOs6epawzxmPB7AOKoNNxZHKPl2VUWXoyY=
-github.com/lib/pq v1.8.0/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
-github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
-github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
-golang.org/x/xerrors v0.0.0-20191204190536-9bdfabe68543/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
