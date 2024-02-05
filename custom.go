@@ -10,7 +10,7 @@ type Time struct {
 	Format string
 }
 
-// custom marshal for formating time based on the Format struct field
+// custom marshal for formatting time based on the Format struct field
 
 func (t Time) MarshalText() ([]byte, error) {
 	if y := t.Year(); y < 0 || y >= 10000 {

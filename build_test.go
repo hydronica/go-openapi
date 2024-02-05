@@ -1,50 +1,33 @@
 package openapi
 
 import (
-	"encoding/json"
-	"fmt"
+	_ "embed"
+	"errors"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/hydronica/trial"
 	"testing"
 	"time"
-
-	"github.com/hydronica/trial"
 )
 
 func TestBuildSchema(t *testing.T) {
-
-	type PrimitiveTypes struct {
-		F1 int    `json:"field_one"`
-		F2 string `json:"field_two"`
+	type Primitives struct {
+		Int    int `json:"custom_int"`
+		String string
+		Bool   bool
+		Number float64
 	}
 
 	type TestA struct {
-		F1 string   `json:"field_one"`
-		F2 []string `json:"field_two"`
-		F3 int      `json:"field_three"`
-	}
-
-	type TestB struct {
-		F1 TestA `json:"b_field_one"` // struct
-	}
-
-	// test with an object slice
-	type TestC struct {
-		F1 []TestA `json:"c_field_one"`
-	}
-
-	// test with an array type
-	type TestD struct {
-		F1 [2]string `json:"d_field_one"`
-	}
-
-	// test with a pointer
-	type TestE struct {
-		F1 *TestA `json:"e_field_one"` // pointer to struct
+		F1 string
+		F2 []string
+		F3 int
 	}
 
 	// test a time type
 	type TestT struct {
-		F1 time.Time `json:"time.time" format:"2006-01-02"` // time.Time is always formated as RFC3339 (unless the example has it's own custom marshal for time.Time)
-		F2 Time      `json:"openapi.time"`                  // custom time format can be used
+		F1 time.Time `json:"time.time" format:"2006-01-02"`
+		//	F2 Time      `json:"openapi.time"`                  // custom time format can be used
 	}
 
 	type TestF struct {
@@ -52,159 +35,304 @@ func TestBuildSchema(t *testing.T) {
 		F2 bool `json:"f2_bool"`
 	}
 
-	type TestP struct {
-		F1 *TestF `json:"f1_pointer_field"`
-		F2 *TestF `json:"f2_pointer_field"`
+	fn := func(i any) (Schema, error) {
+		return buildSchema(i), nil
 	}
 
-	type input struct {
-		i     any  // test input
-		print bool // print out the json value
-	}
+	cases := trial.Cases[any, Schema]{
+		"map_any": {
+			Input: map[string]any{
+				"customValues": []map[string]any{
+					{"adate": "2023-02-01T00:00:00Z", "avalue": 1427200},
+					{"bdate": "2023-01-01T00:00:00Z", "bvalue": 1496400},
+				},
+				"default": map[string][]float64{
+					"monthTrans": {1.1, 2.2, 3.3, 4.4},
+					"monthProc":  {5.5, 6.6, 7.7, 8.8},
+				},
+			},
+			Expected: Schema{
+				Type:  "object",
+				Title: "d048026ab7fb3f07",
+				Properties: map[string]Schema{
+					"customValues": {
+						Type: Array,
+						Items: &Schema{
+							Type:  Object,
+							Title: "6e1052120b0412c8",
+							Properties: map[string]Schema{
+								"adate":  {Type: "string"},
+								"avalue": {Type: "integer"},
+							},
+						}},
+					"default": {
+						Type:  Object,
+						Title: "502deb2d72175bcd",
+						Properties: map[string]Schema{
+							"monthTrans": {Type: Array, Items: &Schema{Type: Number}},
+							"monthProc":  {Type: Array, Items: &Schema{Type: Number}},
+						}},
+				},
+			},
+		},
+		"map_simple": {
+			Input: map[string]string{
+				"key": "value",
+			},
+			Expected: Schema{
+				Type:       "object",
+				Title:      "2292dac000000000",
+				Properties: map[string]Schema{"key": {Type: "string"}},
+			},
+		},
+		"map_object": {
+			Input: map[string]Primitives{
+				"key": {},
+			},
+			Expected: Schema{
+				Type:  Object,
+				Title: "2292dac000000000", // generated hash
+				Properties: map[string]Schema{
+					"key": {
+						Type:  "object",
+						Title: "openapi.Primitives",
+						Properties: map[string]Schema{
+							"custom_int": {Type: Integer},
+							"String":     {Type: String},
+							"Bool":       {Type: Boolean},
+							"Number":     {Type: Number},
+						},
+					},
+				},
+			},
+		},
+		"map_nil_struct": {
+			Input: struct{ F2 *TestF }{
+				F2: (*TestF)(nil), // testing a nil typed pointer
+			},
 
-	fn := func(i input) (string, error) {
-		s, err := buildSchema("test title", "test description", true, i.i, nil)
-		b, _ := json.Marshal(s)
-		b, _ = JSONRemarshal(b)
-		if i.print {
-			fmt.Println(string(b))
-		}
-		return string(b), err
-	}
+			Expected: Schema{
+				Type:  "object",
+				Title: "struct { F2 *openapi.TestF }",
+				Properties: map[string]Schema{
+					"F2": {
+						Type:  "object",
+						Title: "openapi.TestF",
+						Properties: map[string]Schema{
+							"f1_int":  {Type: "integer"},
+							"f2_bool": {Type: "boolean"},
+						}},
+				},
+			},
+		},
+		"time": {
+			Input: trial.TimeDay("2023-01-11"),
 
-	var z *TestF = nil // a nil typed pointer to test
-	cases := trial.Cases[input, string]{
-		"map_test_interface": {
-			Input: input{
-				i: map[string]any{
-					"customValues": []map[string]any{
-						{"adate": "2023-02-01T00:00:00Z", "avalue": 1427200},
-						{"bdate": "2023-01-01T00:00:00Z", "bvalue": 1496400},
-					},
-					"default": map[string][]float64{
-						"monthTrans": {1.1, 2.2, 3.3, 4.4},
-						"monthProc":  {5.5, 6.6, 7.7, 8.8},
-					},
-				},
-				print: false,
+			Expected: Schema{
+				Title: "time.Time",
+				Type:  "string",
 			},
-			Expected: `{"description":"test description","properties":{"customValues":{"items":{"properties":{"adate":{"type":"string"},"avalue":{"format":"int64","type":"integer"}},"type":"object"},"type":"array"},"default":{"properties":{"monthProc":{"items":{"format":"float","type":"number"},"type":"array"},"monthTrans":{"items":{"format":"float","type":"number"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
-		"map_test_simple": {
-			Input: input{
-				i: map[string]string{
-					"key": "value",
+		"simple_object": {
+			Input: Primitives{},
+			Expected: Schema{
+				Type:  Object,
+				Title: "openapi.Primitives",
+				Properties: map[string]Schema{
+					"custom_int": {Type: Integer},
+					"String":     {Type: String},
+					"Bool":       {Type: Boolean},
+					"Number":     {Type: Number},
 				},
-				print: false,
 			},
-			Expected: `{"description":"test description","properties":{"key":{"type":"string"}},"title":"test title","type":"object"}`,
 		},
-		"map_test_object": {
-			Input: input{
-				i: map[string]PrimitiveTypes{
-					"keyvalue": {F1: 123, F2: "string value"},
-				},
-				print: false,
-			},
-			Expected: `{"description":"test description","properties":{"keyvalue":{"properties":{"field_one":{"format":"int64","type":"integer"},"field_two":{"type":"string"}},"type":"object"}},"title":"test title","type":"object"}`,
-		},
-		"nil_typed_pointer_test": {
-			Input: input{
-				i: TestP{
-					F1: &TestF{
-						F1: 321,
-						F2: true,
-					},
-					F2: z, // testing a nil typed pointer
-				},
-				print: false,
-			},
-			Expected: `{"description":"test description","properties":{"f1_pointer_field":{"properties":{"f1_int":{"format":"int64","type":"integer"},"f2_bool":{"type":"boolean"}},"type":"object"},"f2_pointer_field":{}},"title":"test title","type":"object"}`,
-		},
-		"time_test": {
-			Input: input{
-				i: TestT{
-					F1: time.Date(2023, time.January, 11, 0, 0, 0, 0, time.UTC),
-					F2: Time{
-						Time:   time.Date(2023, time.February, 2, 0, 0, 0, 0, time.UTC),
-						Format: "2006-01-02",
-					},
-				},
-				print: false,
-			},
-			Expected: `{"description":"test description","properties":{"openapi.time":{"format":"2006-01-02","type":"string"},"time.time":{"format":"2006-01-02","type":"string"}},"title":"test title","type":"object"}`,
-		},
-		"simple_object_test": {
-			Input: input{
-				i: TestA{
+		"object_within_object": {
+			Input: struct {
+				F1 TestA
+			}{
+				TestA{
 					F1: "testing a",
 					F2: []string{"one", "two", "three"},
 					F3: 1234,
 				},
-				print: false,
 			},
-			Expected: `{"description":"test description","properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"title":"test title","type":"object"}`,
-		},
-		"object_within_object": {
-			Input: input{
-				i: TestB{
-					TestA{
-						F1: "testing a",
-						F2: []string{"one", "two", "three"},
-						F3: 1234,
+			Expected: Schema{
+				Type:  "object",
+				Title: "struct { F1 openapi.TestA }",
+				Properties: map[string]Schema{
+					"F1": {
+						Type:  "object",
+						Title: "openapi.TestA",
+						Properties: map[string]Schema{
+							"F1": {Type: "string"},
+							"F2": {Type: "array", Items: &Schema{Type: "string"}},
+							"F3": {Type: "integer"},
+						},
 					},
 				},
-				print: false,
 			},
-			Expected: `{"description":"test description","properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
 		},
 		"pointer_object": {
-			Input: input{
-				i: &TestB{
-					TestA{
-						F1: "testing a",
-						F2: []string{"one", "two", "three"},
-						F3: 1234,
-					},
-				},
-				print: false,
+			Input: &TestA{
+				F1: "testing a",
+				F2: []string{"one", "two", "three"},
+				F3: 1234,
 			},
-			Expected: `{"description":"test description","properties":{"b_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
+			Expected: Schema{
+				Type:  "object",
+				Title: "openapi.TestA",
+				Properties: map[string]Schema{
+					"F1": {Type: "string"},
+					"F2": {Type: "array", Items: &Schema{Type: "string"}},
+					"F3": {Type: "integer"},
+				},
+			},
 		},
 		"pointer_in_object": {
-			Input: input{
-				i: &TestE{
-					&TestA{
-						F1: "testing a",
-						F2: []string{"one", "two", "three"},
-						F3: 1234,
-					},
+			Input: &struct{ F1 *TestA }{
+				&TestA{
+					F1: "testing a",
+					F2: []string{"one", "two", "three"},
+					F3: 1234,
 				},
-				print: false,
 			},
-			Expected: `{"description":"test description","properties":{"e_field_one":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"}},"title":"test title","type":"object"}`,
+			Expected: Schema{
+				Type:  Object,
+				Title: "struct { F1 *openapi.TestA }",
+				Properties: map[string]Schema{
+					"F1": {
+						Type:  Object,
+						Title: "openapi.TestA",
+						Properties: map[string]Schema{
+							"F1": {Type: "string"},
+							"F2": {Type: "array", Items: &Schema{Type: "string"}},
+							"F3": {Type: "integer"},
+						}},
+				},
+			},
 		},
 		"array_of_array_objects": {
-			Input: input{
-				i: []TestC{
-					{[]TestA{
-						{
-							F1: "testing slice 1",
-							F2: []string{"nine", "eight", "seven"},
-							F3: 987,
-						},
-						{
-							F1: "testing slice 2",
-							F2: []string{"three", "two", "one"},
-							F3: 321,
-						},
-					}},
+			Input: [][]struct {
+				Name string
+			}{},
+			Expected: Schema{
+				Type: Array,
+				Items: &Schema{Type: Array,
+					Items: &Schema{
+						Title:      "struct { Name string }",
+						Type:       Object,
+						Properties: map[string]Schema{"Name": {Type: String}},
+					},
 				},
-				print: false,
 			},
-			Expected: `{"description":"test description","items":{"properties":{"c_field_one":{"items":{"properties":{"field_one":{"type":"string"},"field_three":{"format":"int64","type":"integer"},"field_two":{"items":{"type":"string"},"type":"array"}},"type":"object"},"type":"array"}},"type":"object"},"title":"test title","type":"array"}`,
 		},
+		/*"any_array": {
+			Input: []any{"eholo", struct{ Name string }{Name: "abc"}},
+		}, */
 	}
 
 	trial.New(fn, cases).SubTest(t)
+}
+
+func TestCompile(t *testing.T) {
+
+	type abc struct {
+		Date  time.Time
+		Price float64
+		Count int
+	}
+
+	fn := func(r *Route) (*OpenAPI, error) {
+		o := New("", "", "")
+		o.Paths[r.key()] = r
+		err := o.Compile()
+		return o, err
+	}
+	cases := trial.Cases[*Route, *OpenAPI]{
+		"request-object": {
+			Input: (&Route{path: "test", method: "get"}).
+				AddRequest(RequestBody{}.
+					WithExample(
+						abc{
+							Date:  trial.TimeDay("2023-11-01"),
+							Price: 12.34,
+							Count: 1},
+					)),
+			Expected: &OpenAPI{
+				Paths: Router{
+					"test|get": &Route{
+						Requests: &RequestBody{
+							Content: Content{Json: {
+								Schema: Schema{Ref: "#/components/schemas/openapi.abc"},
+							},
+							},
+						},
+					},
+				},
+				Components: Components{
+					Schemas: map[string]Schema{"openapi.abc": {
+						Title: "openapi.abc",
+						Type:  Object,
+						Properties: map[string]Schema{
+							"Count": {Type: Integer},
+							"Date":  {Type: String, Title: "time.Time"},
+							"Price": {Type: Number},
+						},
+					}},
+				},
+			},
+		},
+		"response-object": {
+			Input: (&Route{path: "test", method: "get"}).AddResponse(
+				Response{Status: 200}.WithExample(abc{})),
+			Expected: &OpenAPI{
+				Paths: Router{
+					"test|get": &Route{
+						Responses: Responses{
+							200: Response{
+								Status: 200,
+								Content: Content{
+									Json: {
+										Schema: Schema{Ref: "#/components/schemas/openapi.abc"},
+									}},
+							}},
+					},
+				},
+				Components: Components{
+					Schemas: map[string]Schema{"openapi.abc": {
+						Title: "openapi.abc",
+						Type:  Object,
+						Properties: map[string]Schema{
+							"Count": {Type: Integer},
+							"Date":  {Type: String, Title: "time.Time"},
+							"Price": {Type: Number},
+						},
+					}},
+				},
+			},
+		},
+		"request-error": {
+			Input: (&Route{path: "test", method: "get"}).
+				AddRequest(RequestBody{}.WithJSONString("invalid")),
+			ExpectedErr: errors.New(`invalid json get request at test: "invalid"`),
+		},
+		"response-error": {
+			Input: (&Route{path: "test", method: "get"}).
+				AddResponse(Response{Status: 200}.WithJSONString("invalid")),
+			ExpectedErr: errors.New(`invalid json get response at test: "invalid"`),
+		},
+		"param-error": {
+			Input:       (&Route{path: "test", method: "get"}).AddParam("query", "name", abc{}, ""),
+			ExpectedErr: errors.New("query param name| err"),
+		},
+	}
+	ignoreExamples := func(_ any) cmp.Option {
+		return cmpopts.IgnoreFields(Media{}, "Examples")
+	}
+	trial.New(fn, cases).Comparer(
+		trial.EqualOpt(
+			trial.IgnoreAllUnexported,
+			trial.IgnoreFields("Version", "Tags"),
+			ignoreExamples,
+		)).SubTest(t)
 }
