@@ -110,8 +110,6 @@ func buildSchema(body any) (s Schema) {
 		kind = value.Kind()
 	}
 
-	s.Title = typ.String()
-
 	switch kind {
 	case reflect.Map:
 		s.Type = Object
@@ -132,6 +130,7 @@ func buildSchema(body any) (s Schema) {
 		s.Title = hash16(strings.Join(sKeys, ""))
 
 	case reflect.Struct:
+		s.Title = typ.String()
 		// these are special cases for time strings
 		// that may have formatting (time.Time default is RFC3339)
 		switch value.Interface().(type) {
@@ -140,6 +139,19 @@ func buildSchema(body any) (s Schema) {
 			return s
 		case Time:
 			s.Type = String
+			return s
+		case Example, *Example:
+			var ex Example
+			if _, ok := body.(*Example); ok {
+				ex = *body.(*Example)
+			} else {
+				ex = body.(Example)
+			}
+
+			sch := buildSchema(ex.Value)
+			s.Title = ""
+			s.Type = sch.Type
+			s.Desc = ex.Desc
 			return s
 		}
 
