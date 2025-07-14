@@ -1,8 +1,9 @@
 package openapi
 
 import (
-	"github.com/hydronica/trial"
 	"testing"
+
+	"github.com/hydronica/trial"
 )
 
 func TestAddParams(t *testing.T) {
@@ -255,7 +256,7 @@ func TestAddResponse(t *testing.T) {
 
 	eq, diff := trial.Equal(route, &Route{
 		path:    "/test",
-		method:  "GET",
+		method:  "get",
 		Tag:     nil,
 		Summary: "",
 		Responses: Responses{

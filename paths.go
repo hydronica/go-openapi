@@ -113,7 +113,9 @@ func CleanPath(path string) string {
 
 // GetRoute associated with the path and method.
 // create a new Route if Route was not found.
+// method should always be lowercase
 func (o *OpenAPI) GetRoute(path, method string) *Route {
+	method = strings.ToLower(method)
 	key := path + "|" + method
 	r, found := o.Paths[key]
 	if !found {
@@ -224,7 +226,7 @@ func (m *Media) AddExample(exName string, i any) {
 // RequestBody describes a single request body.
 type RequestBody struct {
 	Desc     string  `json:"description,omitempty"` // A brief description of the request body. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
-	Content  Content `json:"content,omitempty"`     // REQUIRED. The content of the request body. The key is a media type or media type range and the value describes it. For requests that match multiple keys, only the most specific key is applicable. e.g. text/plain overrides text/*
+	Content  Content `json:"content"`               // REQUIRED. The content of the request body. The key is a media type or media type range and the value describes it. For requests that match multiple keys, only the most specific key is applicable. e.g. text/plain overrides text/*
 	Required bool    `json:"required,omitempty"`    // Determines if the request body is required in the request. Defaults to false.
 }
 
