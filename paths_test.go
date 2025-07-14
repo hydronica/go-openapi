@@ -1,8 +1,9 @@
 package openapi
 
 import (
-	"github.com/hydronica/trial"
 	"testing"
+
+	"github.com/hydronica/trial"
 )
 
 func TestAddParams(t *testing.T) {
@@ -269,7 +270,7 @@ func TestAddResponse(t *testing.T) {
 						Properties: map[string]Schema{"status": {Type: "string"}},
 					},
 					Examples: map[string]Example{
-						"2c69c864087c4000": {
+						"Example 1": {
 							Value: map[string]any{"status": "ok"},
 						},
 					},
@@ -284,7 +285,7 @@ func TestAddResponse(t *testing.T) {
 						Properties: map[string]Schema{"Error": {Type: "string"}},
 					},
 					Examples: map[string]Example{
-						"struct { Error string }": {
+						"Example 1": {
 							Value: struct{ Error string }{Error: "invalid request"},
 						},
 					},
