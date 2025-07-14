@@ -179,8 +179,32 @@ func (r Response) WithJSONString(s string) Response {
 }
 
 // WithExample takes a struct and adds a json Content to the Response
+// name is auto generated based on the example count
 func (r Response) WithExample(i any) Response {
-	return r.WithNamedExample("", i)
+	exampleCount := len(r.Content[Json].Examples) + 1
+	return r.WithNamedExample("Example "+strconv.Itoa(exampleCount), i)
+}
+
+// WithNamedJsonString takes a json string object and adds a json Content to the Response
+// s is unmarshalled into a map to extract the key and value pairs
+// JSONStringResp || resp.JSONString(s)
+func (r Response) WithNamedJsonString(name string, s string) Response {
+	var m any
+	if s[0] == '[' && s[len(s)-1] == ']' {
+		m = make([]any, 0)
+	} else {
+		m = make(map[string]any)
+	}
+	err := json.Unmarshal([]byte(s), &m)
+	if err != nil {
+		// return a response with the error message
+		return Response{
+			Status:  r.Status,
+			Desc:    err.Error(),
+			Content: Content{"invalid/json": {Examples: map[string]Example{"invalid": {Value: s}}}},
+		}
+	}
+	return r.WithNamedExample(name, m)
 }
 
 func (r Response) WithNamedExample(name string, i any) Response {
