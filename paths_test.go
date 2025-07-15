@@ -294,7 +294,7 @@ func TestAddResponse(t *testing.T) {
 		},
 	})
 	if !eq {
-		t.Logf(diff)
+		t.Log(diff)
 		t.Fail()
 	}
 

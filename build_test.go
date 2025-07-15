@@ -3,11 +3,12 @@ package openapi
 import (
 	_ "embed"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hydronica/trial"
-	"testing"
-	"time"
 )
 
 func TestBuildSchema(t *testing.T) {
@@ -22,12 +23,6 @@ func TestBuildSchema(t *testing.T) {
 		F1 string
 		F2 []string
 		F3 int
-	}
-
-	// test a time type
-	type TestT struct {
-		F1 time.Time `json:"time.time" format:"2006-01-02"`
-		//	F2 Time      `json:"openapi.time"`                  // custom time format can be used
 	}
 
 	type TestF struct {

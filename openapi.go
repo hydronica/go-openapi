@@ -54,7 +54,7 @@ type Tag struct {
 }
 
 type ExternalDocs struct {
-	Desc string `json:"description,omitempty""`        // A short description of the target documentation. CommonMark syntax MAY be used for rich text representation.
+	Desc string `json:"description,omitempty"`         // A short description of the target documentation. CommonMark syntax MAY be used for rich text representation.
 	URL  string `json:"url,omitempty" required:"true"` // REQUIRED. The URL for the target documentation. Value MUST be in the format of a URL.
 }
 

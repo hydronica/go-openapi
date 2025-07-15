@@ -160,29 +160,13 @@ type Response struct {
 // s is unmarshalled into a map to extract the key and value pairs
 // JSONStringResp || resp.JSONString(s)
 func (r Response) WithJSONString(s string) Response {
-	var m any
-	if s[0] == '[' && s[len(s)-1] == ']' {
-		m = make([]any, 0)
-	} else {
-		m = make(map[string]any)
-	}
-	err := json.Unmarshal([]byte(s), &m)
-	if err != nil {
-		// return a response with the error message
-		return Response{
-			Status:  r.Status,
-			Desc:    err.Error(),
-			Content: Content{"invalid/json": {Examples: map[string]Example{"invalid": {Value: s}}}},
-		}
-	}
-	return r.WithExample(m)
+	return r.WithNamedJsonString("", s)
 }
 
 // WithExample takes a struct and adds a json Content to the Response
 // name is auto generated based on the example count
 func (r Response) WithExample(i any) Response {
-	exampleCount := len(r.Content[Json].Examples) + 1
-	return r.WithNamedExample("Example "+strconv.Itoa(exampleCount), i)
+	return r.WithNamedExample("", i)
 }
 
 // WithNamedJsonString takes a json string object and adds a json Content to the Response
@@ -221,7 +205,7 @@ func (r Response) WithNamedExample(name string, i any) Response {
 // creating a schema based on the object i passed in.
 // The Example name will be the title of the Schema if not provided
 // and any description from added to the example as well.
-func (m *Media) AddExample(exName string, i any) {
+func (m *Media) AddExample(name string, i any) {
 	if m.Examples == nil {
 		m.Examples = make(map[string]Example)
 	}
@@ -229,8 +213,9 @@ func (m *Media) AddExample(exName string, i any) {
 	if m.Schema.Title == "" {
 		m.Schema = schema
 	}
-	if exName == "" {
-		exName = schema.Title
+	if name == "" {
+		count := len(m.Examples) + 1
+		name = "Example " + strconv.Itoa(count)
 	}
 	ex := Example{
 		Desc:  schema.Desc,
@@ -238,11 +223,11 @@ func (m *Media) AddExample(exName string, i any) {
 	}
 
 	// create unique name if key already exists
-	if _, found := m.Examples[exName]; found {
-		exName = exName + strconv.Itoa(len(m.Examples))
+	if _, found := m.Examples[name]; found {
+		name = name + strconv.Itoa(len(m.Examples))
 	}
 
-	m.Examples[exName] = ex
+	m.Examples[name] = ex
 }
 
 // RequestBody describes a single request body.
