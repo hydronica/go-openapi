@@ -162,6 +162,19 @@ type Response struct {
 // s is unmarshalled into a map to extract the key and value pairs
 // JSONStringResp || resp.JSONString(s)
 func (r Response) WithJSONString(s string) Response {
+	return r.WithNamedJsonString("", s)
+}
+
+// WithExample takes a struct and adds a json Content to the Response
+// name is auto generated based on the example count
+func (r Response) WithExample(i any) Response {
+	return r.WithNamedExample("", i)
+}
+
+// WithNamedJsonString takes a json string object and adds a json Content to the Response
+// s is unmarshalled into a map to extract the key and value pairs
+// JSONStringResp || resp.JSONString(s)
+func (r Response) WithNamedJsonString(name string, s string) Response {
 	var m any
 	if s[0] == '[' && s[len(s)-1] == ']' {
 		m = make([]any, 0)
@@ -177,12 +190,7 @@ func (r Response) WithJSONString(s string) Response {
 			Content: Content{"invalid/json": {Examples: map[string]Example{"invalid": {Value: s}}}},
 		}
 	}
-	return r.WithExample(m)
-}
-
-// WithExample takes a struct and adds a json Content to the Response
-func (r Response) WithExample(i any) Response {
-	return r.WithNamedExample("", i)
+	return r.WithNamedExample(name, m)
 }
 
 func (r Response) WithNamedExample(name string, i any) Response {
@@ -199,7 +207,7 @@ func (r Response) WithNamedExample(name string, i any) Response {
 // creating a schema based on the object i passed in.
 // The Example name will be the title of the Schema if not provided
 // and any description from added to the example as well.
-func (m *Media) AddExample(exName string, i any) {
+func (m *Media) AddExample(name string, i any) {
 	if m.Examples == nil {
 		m.Examples = make(map[string]Example)
 	}
@@ -207,8 +215,8 @@ func (m *Media) AddExample(exName string, i any) {
 	if m.Schema.Title == "" {
 		m.Schema = schema
 	}
-	if exName == "" {
-		exName = schema.Title
+	if name == "" {
+		name = "Example"
 	}
 	ex := Example{
 		Desc:  schema.Desc,
@@ -216,11 +224,11 @@ func (m *Media) AddExample(exName string, i any) {
 	}
 
 	// create unique name if key already exists
-	if _, found := m.Examples[exName]; found {
-		exName = exName + strconv.Itoa(len(m.Examples))
+	if _, found := m.Examples[name]; found {
+		name = name + " " + strconv.Itoa(len(m.Examples))
 	}
 
-	m.Examples[exName] = ex
+	m.Examples[name] = ex
 }
 
 // RequestBody describes a single request body.
@@ -228,6 +236,10 @@ type RequestBody struct {
 	Desc     string  `json:"description,omitempty"` // A brief description of the request body. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
 	Content  Content `json:"content"`               // REQUIRED. The content of the request body. The key is a media type or media type range and the value describes it. For requests that match multiple keys, only the most specific key is applicable. e.g. text/plain overrides text/*
 	Required bool    `json:"required,omitempty"`    // Determines if the request body is required in the request. Defaults to false.
+}
+
+func (r RequestBody) WithNamedJsonString(name string, s string) RequestBody {
+	return r.WithNamedExample(name, s)
 }
 
 func (r RequestBody) WithJSONString(s string) RequestBody {

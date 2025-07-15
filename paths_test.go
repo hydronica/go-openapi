@@ -251,8 +251,10 @@ func TestAddResponse(t *testing.T) {
 	route.AddResponse(Response{
 		Status: 200,
 		Desc:   "resp desc",
-	}.WithJSONString(`{"status":"ok"}`))
-	route.AddResponse(Response{Status: 400}.WithExample(struct{ Error string }{Error: "invalid request"}))
+	}.WithJSONString(`{"status":"ok"}`).WithJSONString(`{"status":"ok"}`))
+
+	route.AddResponse(Response{Status: 400}.
+		WithExample(struct{ Error string }{Error: "invalid request"}))
 
 	eq, diff := trial.Equal(route, &Route{
 		path:    "/test",
@@ -270,9 +272,8 @@ func TestAddResponse(t *testing.T) {
 						Properties: map[string]Schema{"status": {Type: "string"}},
 					},
 					Examples: map[string]Example{
-						"2c69c864087c4000": {
-							Value: map[string]any{"status": "ok"},
-						},
+						"Example":   {Value: map[string]any{"status": "ok"}},
+						"Example 1": {Value: map[string]any{"status": "ok"}},
 					},
 				}},
 			},
@@ -285,16 +286,14 @@ func TestAddResponse(t *testing.T) {
 						Properties: map[string]Schema{"Error": {Type: "string"}},
 					},
 					Examples: map[string]Example{
-						"struct { Error string }": {
-							Value: struct{ Error string }{Error: "invalid request"},
-						},
+						"Example": {Value: struct{ Error string }{Error: "invalid request"}},
 					},
 				}},
 			},
 		},
 	})
 	if !eq {
-		t.Logf(diff)
+		t.Log(diff)
 		t.Fail()
 	}
 
