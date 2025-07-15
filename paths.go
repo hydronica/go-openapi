@@ -214,7 +214,7 @@ func (m *Media) AddExample(name string, i any) {
 		m.Schema = schema
 	}
 	if name == "" {
-		name = "Example "
+		name = "Example"
 	}
 	ex := Example{
 		Desc:  schema.Desc,
@@ -223,7 +223,7 @@ func (m *Media) AddExample(name string, i any) {
 
 	// create unique name if key already exists
 	if _, found := m.Examples[name]; found {
-		name = name + strconv.Itoa(len(m.Examples))
+		name = name + " " + strconv.Itoa(len(m.Examples))
 	}
 
 	m.Examples[name] = ex
