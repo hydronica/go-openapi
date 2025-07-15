@@ -29,6 +29,7 @@ func TestBuildSchema(t *testing.T) {
 		F1 int  `json:"f1_int"`
 		F2 bool `json:"f2_bool"`
 	}
+	setJSON := JSONString(`{"error": "invalid"}`).SetName("error_message")
 
 	fn := func(i any) (Schema, error) {
 		return buildSchema(i), nil
@@ -70,6 +71,30 @@ func TestBuildSchema(t *testing.T) {
 				},
 			},
 		},
+		"jsonString": {
+			Input: JSONString(`{"key": "value"}`),
+			Expected: Schema{
+				Type:       "object",
+				Title:      "2292dac000000000",
+				Properties: map[string]Schema{"key": {Type: "string"}},
+			},
+		},
+		"jsonString_named": {
+			Input: setJSON,
+			Expected: Schema{
+				Type:       "object",
+				Title:      "error_message",
+				Properties: map[string]Schema{"error": {Type: "string"}},
+			},
+		},
+		/*"jsonString_array": {
+			Input: JSONString(`["value1", "value2"]`),
+			Expected: Schema{
+				Type:  "array",
+				Items: &Schema{Type: "string"},
+				Title: "2292dac000000000",
+			},
+		},*/
 		"map_simple": {
 			Input: map[string]string{
 				"key": "value",
@@ -230,7 +255,6 @@ func TestBuildSchema(t *testing.T) {
 }
 
 func TestCompile(t *testing.T) {
-
 	type abc struct {
 		Date  time.Time
 		Price float64
