@@ -214,8 +214,7 @@ func (m *Media) AddExample(name string, i any) {
 		m.Schema = schema
 	}
 	if name == "" {
-		count := len(m.Examples) + 1
-		name = "Example " + strconv.Itoa(count)
+		name = "Example "
 	}
 	ex := Example{
 		Desc:  schema.Desc,
@@ -235,6 +234,10 @@ type RequestBody struct {
 	Desc     string  `json:"description,omitempty"` // A brief description of the request body. This could contain examples of use. CommonMark syntax MAY be used for rich text representation.
 	Content  Content `json:"content,omitempty"`     // REQUIRED. The content of the request body. The key is a media type or media type range and the value describes it. For requests that match multiple keys, only the most specific key is applicable. e.g. text/plain overrides text/*
 	Required bool    `json:"required,omitempty"`    // Determines if the request body is required in the request. Defaults to false.
+}
+
+func (r RequestBody) WithNamedJsonString(name string, s string) RequestBody {
+	return r.WithNamedExample(name, s)
 }
 
 func (r RequestBody) WithJSONString(s string) RequestBody {
