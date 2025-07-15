@@ -161,6 +161,7 @@ type Response struct {
 // WithJSONString takes a json string object and adds a json Content to the Response
 // s is unmarshalled into a map to extract the key and value pairs
 // JSONStringResp || resp.JSONString(s)
+// Deprecated: use WithExample(JSONString(s)) instead
 func (r Response) WithJSONString(s string) Response {
 	return r.WithNamedJsonString("", s)
 }
@@ -174,6 +175,7 @@ func (r Response) WithExample(i any) Response {
 // WithNamedJsonString takes a json string object and adds a json Content to the Response
 // s is unmarshalled into a map to extract the key and value pairs
 // JSONStringResp || resp.JSONString(s)
+// Deprecated: use WithNamedExample(name, JSONString(s)) instead
 func (r Response) WithNamedJsonString(name string, s string) Response {
 	var m any
 	if s[0] == '[' && s[len(s)-1] == ']' {
@@ -238,11 +240,8 @@ type RequestBody struct {
 	Required bool    `json:"required,omitempty"`    // Determines if the request body is required in the request. Defaults to false.
 }
 
+// Deprecated: use WithNamedExample(name, JSONString(s)) instead
 func (r RequestBody) WithNamedJsonString(name string, s string) RequestBody {
-	return r.WithNamedExample(name, s)
-}
-
-func (r RequestBody) WithJSONString(s string) RequestBody {
 	var m any
 	if s[0] == '[' && s[len(s)-1] == ']' {
 		m = make([]any, 0)
@@ -258,6 +257,11 @@ func (r RequestBody) WithJSONString(s string) RequestBody {
 		}
 	}
 	return r.WithExample(m)
+}
+
+// Deprecated: use WithExample(JSONString(s)) instead
+func (r RequestBody) WithJSONString(s string) RequestBody {
+	return r.WithNamedJsonString("", s)
 }
 
 func (r RequestBody) WithExample(i any) RequestBody {
