@@ -81,15 +81,9 @@ func (o *OpenAPI) AddOpenIDConnectAuth(name string, openIDConnectURL string, des
 // For non-OAuth2 schemes, pass an empty slice for scopes
 // For OAuth2 schemes, pass the required scopes
 func (o *OpenAPI) AddSecurityRequirement(schemeName string, scopes []string) {
-	if o.Security == nil {
-		o.Security = make([]map[string][]string, 0)
-	}
-
-	requirement := map[string][]string{
+	o.addSecurityRequirementHelper(map[string][]string{
 		schemeName: scopes,
-	}
-
-	o.Security = append(o.Security, requirement)
+	})
 }
 
 // AddMultipleSecurityRequirement adds a security requirement with multiple schemes (AND logic)
