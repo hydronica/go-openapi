@@ -40,7 +40,7 @@ func (o *OpenAPI) AddAPIKeyAuth(name string, keyName string, location string, de
 func (o *OpenAPI) AddBearerAuth(name string, bearerFormat string, description string) {
 	scheme := SecurityScheme{
 		Type:         "http",
-		Scheme:       "Bearer",
+		Scheme:       "bearer",
 		BearerFormat: bearerFormat,
 		Description:  description,
 	}
