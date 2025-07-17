@@ -15,9 +15,6 @@ func (o *OpenAPI) AddSecurity(security string) {
 
 // AddSecurityScheme adds a security scheme to the OpenAPI specification
 func (o *OpenAPI) AddSecurityScheme(name string, scheme SecurityScheme) {
-	// if the global security schemes are not defined, create them
-	o.AddSecurity(name)
-
 	// if the security schemes are not defined, create them
 	if o.Components.SecuritySchemes == nil {
 		o.Components.SecuritySchemes = make(map[string]SecurityScheme)
@@ -26,7 +23,7 @@ func (o *OpenAPI) AddSecurityScheme(name string, scheme SecurityScheme) {
 }
 
 // AddAPIKeyAuth adds an API key authentication scheme
-func (o *OpenAPI) AddAPIKeyAuth(name string, keyName string, location string, description string) {
+func (o *OpenAPI) AddAPIKeyAuth(name, keyName, location, description string) {
 	scheme := SecurityScheme{
 		Type:        "apiKey",
 		Name:        keyName,
@@ -37,7 +34,7 @@ func (o *OpenAPI) AddAPIKeyAuth(name string, keyName string, location string, de
 }
 
 // AddBearerAuth adds a bearer token authentication scheme
-func (o *OpenAPI) AddBearerAuth(name string, bearerFormat string, description string) {
+func (o *OpenAPI) AddBearerAuth(name, bearerFormat, description string) {
 	scheme := SecurityScheme{
 		Type:         "http",
 		Scheme:       "bearer",
@@ -68,7 +65,7 @@ func (o *OpenAPI) AddOAuth2Auth(name string, flows *Flows, description string) {
 }
 
 // AddOpenIDConnectAuth adds an OpenID Connect authentication scheme
-func (o *OpenAPI) AddOpenIDConnectAuth(name string, openIDConnectURL string, description string) {
+func (o *OpenAPI) AddOpenIDConnectAuth(name, openIDConnectURL, description string) {
 	scheme := SecurityScheme{
 		Type:             "openIdConnect",
 		OpenIDConnectURL: openIDConnectURL,
