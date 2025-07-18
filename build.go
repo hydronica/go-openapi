@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+// NewFromJson creates a new OpenAPI object from an existing json string
+// This allows the user to create a spec with a base structure and then add to it.
 func NewFromJson(spec string) (api *OpenAPI, err error) {
 	api = &OpenAPI{
 		Paths: make(Router),
@@ -238,11 +240,11 @@ func (o *OpenAPI) Compile() error {
 		o.Components.Schemas = make(map[string]Schema)
 	}
 	var errs error
-	for _, r := range o.Paths {
-		if r.Requests != nil {
-			for k, c := range r.Requests.Content {
+	for _, path := range o.Paths {
+		if path.Requests != nil {
+			for k, c := range path.Requests.Content {
 				if k == "invalid/json" {
-					errs = errors.Join(errs, fmt.Errorf("invalid json %v request at %v: %q", r.method, r.path, c.Examples["invalid"].Value))
+					errs = errors.Join(errs, fmt.Errorf("invalid json %v request at %v: %q", path.method, path.path, c.Examples["invalid"].Value))
 					continue
 				}
 				if c.Schema.Type != Object {
@@ -252,13 +254,13 @@ func (o *OpenAPI) Compile() error {
 					o.Components.Schemas[c.Schema.Title] = c.Schema
 				}
 				c.Schema = Schema{Ref: "#/components/schemas/" + c.Schema.Title}
-				r.Requests.Content[k] = c
+				path.Requests.Content[k] = c
 			}
 		}
-		for _, resp := range r.Responses {
+		for _, resp := range path.Responses {
 			for k, c := range resp.Content {
 				if k == "invalid/json" {
-					errs = errors.Join(errs, fmt.Errorf("invalid json %v response at %v: %q", r.method, r.path, c.Examples["invalid"].Value))
+					errs = errors.Join(errs, fmt.Errorf("invalid json %v response at %v: %q", path.method, path.path, c.Examples["invalid"].Value))
 					continue
 				}
 				if c.Schema.Type != Object {
@@ -272,7 +274,7 @@ func (o *OpenAPI) Compile() error {
 			}
 		}
 
-		for _, p := range r.Params {
+		for _, p := range path.Params {
 			if strings.Contains(p.Desc, "err:") {
 				errs = errors.Join(errs, fmt.Errorf("%v param %v| %v", p.In, p.Name, p.Desc))
 			}

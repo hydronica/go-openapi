@@ -4,16 +4,19 @@ import (
 	"strconv"
 )
 
+type SecurityRequirement map[string][]string
+
 // OpenAPI represents the definition of the openapi specification 3.0.3
+// https://swagger.io/specification/v3/#openapi-object
 type OpenAPI struct {
 	Version      string                `json:"openapi"`                // the  semantic version number of the OpenAPI Specification version
 	Servers      []Server              `json:"servers,omitempty"`      // Array of Server Objects, which provide connectivity information to a target server.
-	Info         Info                  `json:"info"`                   // REQUIRED. Provides metadata about the API. The metadata MAY be used by tooling as required.
+	Info         Info                  `json:"info"`                   // https://swagger.io/specification/v3/#info-object - REQUIRED. Provides metadata about the API. The metadata MAY be used by tooling as required.
 	Tags         []Tag                 `json:"tags,omitempty"`         // A list of tags used by the specification with additional metadata
-	Paths        Router                `json:"paths"`                  // key= path|method
-	Components   Components            `json:"components,omitempty"`   // reuseable components
-	ExternalDocs *ExternalDocs         `json:"externalDocs,omitempty"` //Additional external documentation.
-	Security     []map[string][]string `json:"security,omitempty"`     // Lists the required security schemes to execute this operation. The name used for each property MUST correspond to a security scheme declared in the Security Schemes under the Components Object.
+	Paths        Router                `json:"paths"`                  // https://swagger.io/specification/v3/#paths-object - key= path|method
+	Components   Components            `json:"components,omitempty"`   // https://swagger.io/specification/v3/#components-object - reuseable components
+	ExternalDocs *ExternalDocs         `json:"externalDocs,omitempty"` // https://swagger.io/specification/v3/#external-documentation-object - Additional external documentation.
+	Security     []SecurityRequirement `json:"security,omitempty"`     // https://swagger.io/specification/v3/#security-requirement-object - Lists the required security schemes to execute this operation. The name used for each property MUST correspond to a security scheme declared in the Security Schemes under the Components Object.
 }
 
 type Server struct {

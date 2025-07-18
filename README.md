@@ -254,19 +254,19 @@ route.AddResponse(openapi.Response{Status: 500, Desc: "Server error"}.WithJSONSt
 
 ```go
 // Header-based API key
-doc.AddAPIKeyAuth("ApiKeyAuth", "X-API-Key", "header", "API key for authentication")
+doc.AddAPIKeyAuth("YourUniqueNameApiKeyAuth", "X-API-Key", openapi.APIKeyInHeader, "API key for authentication")
 
 // Query parameter API key
-doc.AddAPIKeyAuth("ApiKeyQuery", "api_key", "query", "API key as query parameter")
+doc.AddAPIKeyAuth("ApiKeyQuery", "api_key", openapi.APIKeyInQuery, "API key as query parameter")
 
 // Cookie-based API key
-doc.AddAPIKeyAuth("ApiKeyCookie", "auth_token", "cookie", "API key in cookie")
+doc.AddAPIKeyAuth("ApiKeyCookie", "auth_token", openapi.APIKeyInCookie, "API key in cookie")
 ```
 
 ### Bearer Token Authentication
 
 ```go
-doc.AddBearerAuth("BearerAuth", "JWT", "Bearer token authentication")
+doc.AddBearerAuth("BearerAuth", openapi.BearerFormatJWT, "Bearer token authentication")
 ```
 
 ### Basic Authentication
@@ -312,6 +312,30 @@ doc.AddMultipleSecurityRequirement(map[string][]string{
     "ApiKeyAuth": {},
     "OAuth2":     {"read"},
 })
+```
+
+### Available Constants
+
+The library provides constants for common security values:
+
+```go
+// Security scheme types
+openapi.SecurityTypeAPIKey    // "apiKey"
+openapi.SecurityTypeHTTP      // "http"
+openapi.SecurityTypeOAuth2    // "oauth2"
+openapi.SecurityTypeOpenID    // "openIdConnect"
+
+// HTTP authentication schemes
+openapi.HTTPSchemeBearer     // "bearer"
+openapi.HTTPSchemeBasic      // "basic"
+
+// API key locations
+openapi.APIKeyInQuery        // "query"
+openapi.APIKeyInHeader       // "header"
+openapi.APIKeyInCookie       // "cookie"
+
+// Common bearer token formats
+openapi.BearerFormatJWT // "JWT"
 ```
 
 ## Advanced Features
@@ -422,7 +446,7 @@ func main() {
     doc := openapi.New("User API", "1.0.0", "A simple user management API")
 
     // Add security
-    doc.AddBearerAuth("BearerAuth", "JWT", "Bearer token authentication")
+    doc.AddBearerAuth("BearerAuth", openapi.BearerFormatJWT, "Bearer token authentication")
 
     // Add tags
     doc.AddTags(openapi.Tag{
