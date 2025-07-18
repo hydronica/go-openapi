@@ -14,16 +14,18 @@ import (
 type Router map[string]*Route
 
 // Route is a simplified definition for managing routes in code
+// this object represents the operation object in the OpenAPI specification
 type Route struct {
 	// internal reference
 	path   string
 	method string
 
-	Tag       []string          `json:"tags,omitempty"`
-	Summary   string            `json:"summary,omitempty"`
-	Responses map[Code]Response `json:"responses,omitempty"`   // [status_code]Response
-	Params    Params            `json:"parameters,omitempty"`  // key reference for params. key is name of Param
-	Requests  *RequestBody      `json:"requestBody,omitempty"` // key reference for requests
+	Tag       []string              `json:"tags,omitempty"`
+	Summary   string                `json:"summary,omitempty"`
+	Responses map[Code]Response     `json:"responses,omitempty"`   // [status_code]Response
+	Params    Params                `json:"parameters,omitempty"`  // key reference for params. key is name of Param
+	Security  []SecurityRequirement `json:"security,omitempty"`    // https://swagger.io/specification/v3/#security-requirement-object - Lists the required security schemes to execute this operation. The name used for each property MUST correspond to a security scheme declared in the Security Schemes under the Components Object.
+	Requests  *RequestBody          `json:"requestBody,omitempty"` // key reference for requests
 
 	/* NOT CURRENTLY SUPPORT VALUES
 	// operationId is an optional unique string used to identify an operation
