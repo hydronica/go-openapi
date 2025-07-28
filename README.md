@@ -300,18 +300,49 @@ doc.AddOpenIDConnectAuth("OpenIDConnect", "https://example.com/.well-known/openi
 
 ### Security Requirements
 
+#### Global Security Requirements
+
 ```go
-// Single security requirement
+// Single security requirement for all endpoints
 doc.AddSecurityRequirement("ApiKeyAuth", []string{})
 
-// OAuth2 with scopes
+// OAuth2 with scopes for all endpoints
 doc.AddSecurityRequirement("OAuth2", []string{"read", "write"})
 
-// Multiple security schemes (AND logic)
+// Multiple security schemes (AND logic) for all endpoints
 doc.AddMultipleSecurityRequirement(map[string][]string{
     "ApiKeyAuth": {},
     "OAuth2":     {"read"},
 })
+```
+
+#### Route-Specific Security Requirements
+
+```go
+// Add security to individual routes
+route := doc.GetRoute("/admin/users", "POST")
+
+// Single security requirement for this route only
+route.AddSecurity("OAuth2Auth", "admin", "write")
+
+// Multiple security schemes for this route (AND logic)
+route.AddMultipleSecurity(map[string][]string{
+    "BearerAuth": {},
+    "ApiKeyAuth": {},
+})
+
+// Different routes can have different security requirements
+publicRoute := doc.GetRoute("/public", "GET")
+// No security requirements needed for public route
+
+protectedRoute := doc.GetRoute("/protected", "GET")
+protectedRoute.AddSecurity("BearerAuth")
+
+adminRoute := doc.GetRoute("/admin", "DELETE")
+adminRoute.AddSecurity("OAuth2Auth", "admin")
+
+// Clear security from a route if needed
+route.ClearSecurity()
 ```
 
 ### Available Constants
@@ -445,8 +476,22 @@ func main() {
     // Create document
     doc := openapi.New("User API", "1.0.0", "A simple user management API")
 
-    // Add security
+    // Add security schemes
     doc.AddBearerAuth("BearerAuth", openapi.BearerFormatJWT, "Bearer token authentication")
+
+    // Add OAuth2 for admin endpoints
+    flows := &openapi.Flows{
+        AuthorizationCode: &openapi.Flow{
+            AuthorizationURL: "https://example.com/oauth/authorize",
+            TokenURL:         "https://example.com/oauth/token",
+            Scopes: map[string]string{
+                "read":  "Read access to user data",
+                "write": "Write access to user data",
+                "admin": "Administrative access",
+            },
+        },
+    }
+    doc.AddOAuth2Auth("OAuth2Auth", flows, "OAuth2 authentication for admin operations")
 
     // Add tags
     doc.AddTags(openapi.Tag{
@@ -482,11 +527,12 @@ func main() {
         Desc:   "Invalid request",
     }.WithExample(ErrorResponse{Error: "validation failed", Details: "name is required"}))
 
-    // GET /users/{id}
+    // GET /users/{id} - requires bearer auth
     getRoute := doc.GetRoute("/users/{id}", "GET")
     getRoute.Tags("users")
     getRoute.Summary = "Get user by ID"
     getRoute.PathParam("id", 123, "User ID")
+    getRoute.AddSecurity("BearerAuth") // Route-specific security
     getRoute.AddResponse(openapi.Response{
         Status: 200,
         Desc:   "User details",
@@ -495,6 +541,31 @@ func main() {
         Status: 404,
         Desc:   "User not found",
     }.WithExample(ErrorResponse{Error: "not found", Details: "user with id 123 not found"}))
+
+    // DELETE /users/{id} - requires admin OAuth2 scope
+    deleteRoute := doc.GetRoute("/users/{id}", "DELETE")
+    deleteRoute.Tags("users")
+    deleteRoute.Summary = "Delete user"
+    deleteRoute.PathParam("id", 123, "User ID")
+    deleteRoute.AddSecurity("OAuth2Auth", "admin") // Admin-only endpoint
+    deleteRoute.AddResponse(openapi.Response{
+        Status: 204,
+        Desc:   "User deleted successfully",
+    })
+    deleteRoute.AddResponse(openapi.Response{
+        Status: 403,
+        Desc:   "Insufficient permissions",
+    }.WithExample(ErrorResponse{Error: "forbidden", Details: "admin scope required"}))
+
+    // GET /public/info - no security required
+    publicRoute := doc.GetRoute("/public/info", "GET")
+    publicRoute.Tags("public")
+    publicRoute.Summary = "Get public information"
+    publicRoute.AddResponse(openapi.Response{
+        Status: 200,
+        Desc:   "Public information",
+    }.WithJSONString(`{"version": "1.0.0", "status": "operational"}`))
+    // No security requirements for public endpoints
 
     // Compile and validate
     if err := doc.Compile(); err != nil {
@@ -520,15 +591,38 @@ func main() {
 
 ### Methods
 
+#### Document Methods
 - `New(title, version, description)`: Create new document
 - `NewFromJson(spec)`: Create from existing JSON
 - `GetRoute(path, method)`: Get or create route
-- `AddResponse(response)`: Add response to route
-- `AddRequest(request)`: Add request body to route
-- `WithExample(value)`: Add example to request/response
-- `WithJSONString(json)`: Add JSON string example
 - `JSON()`: Generate JSON output
 - `Compile()`: Validate and consolidate schemas
+
+#### Global Security Methods
+- `AddAPIKeyAuth(name, keyName, location, description)`: Add API key authentication
+- `AddBearerAuth(name, bearerFormat, description)`: Add bearer token authentication
+- `AddBasicAuth(name, description)`: Add basic authentication
+- `AddOAuth2Auth(name, flows, description)`: Add OAuth2 authentication
+- `AddOpenIDConnectAuth(name, url, description)`: Add OpenID Connect authentication
+- `AddSecurityRequirement(schemeName, scopes...)`: Add global security requirement
+- `AddMultipleSecurityRequirement(schemes)`: Add multiple global security schemes
+
+#### Route Methods
+- `AddResponse(response)`: Add response to route
+- `AddRequest(request)`: Add request body to route
+- `AddSecurity(schemeName, scopes...)`: Add security requirement to specific route
+- `AddMultipleSecurity(schemes)`: Add multiple security schemes to specific route
+- `ClearSecurity()`: Remove all security requirements from route
+- `PathParam(name, value, desc)`: Add path parameter
+- `QueryParam(name, value, desc)`: Add query parameter
+- `HeaderParam(name, value, desc)`: Add header parameter
+- `CookieParam(name, value, desc)`: Add cookie parameter
+- `Tags(tags...)`: Add tags to route
+
+#### Request/Response Methods
+- `WithExample(value)`: Add example to request/response
+- `WithJSONString(json)`: Add JSON string example
+- `WithNamedExample(name, value)`: Add named example
 
 ## Contributing
 

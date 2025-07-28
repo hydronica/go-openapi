@@ -537,3 +537,36 @@ func (p *Params) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+
+// AddSecurity adds a security requirement to this specific route
+// For non-OAuth2 schemes, pass no scopes or empty slice
+// For OAuth2 schemes, pass the required scopes
+func (r *Route) AddSecurity(schemeName string, scopes ...string) *Route {
+	if r.Security == nil {
+		r.Security = make([]SecurityRequirement, 0)
+	}
+
+	requirement := SecurityRequirement{
+		schemeName: scopes,
+	}
+
+	r.Security = append(r.Security, requirement)
+	return r
+}
+
+// AddMultipleSecurity adds a security requirement with multiple schemes to this specific route (AND logic)
+// All schemes in the map must be satisfied for this route
+func (r *Route) AddMultipleSecurity(schemes map[string][]string) *Route {
+	if r.Security == nil {
+		r.Security = make([]SecurityRequirement, 0)
+	}
+
+	r.Security = append(r.Security, SecurityRequirement(schemes))
+	return r
+}
+
+// ClearSecurity removes all security requirements from this specific route
+func (r *Route) ClearSecurity() *Route {
+	r.Security = nil
+	return r
+}

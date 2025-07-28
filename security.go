@@ -109,9 +109,9 @@ func (o *OpenAPI) AddOpenIDConnectAuth(name, openIDConnectURL, description strin
 }
 
 // AddSecurityRequirement adds a security requirement to the OpenAPI specification
-// For non-OAuth2 schemes, pass an empty slice for scopes
-// For OAuth2 schemes, pass the required scopes
-func (o *OpenAPI) AddSecurityRequirement(schemeName string, scopes []string) {
+// For non-OAuth2 schemes, pass an empty string for scopes
+// For OAuth2 schemes, pass each scope as a separate argument
+func (o *OpenAPI) AddSecurityRequirement(schemeName string, scopes ...string) {
 	if o.Security == nil {
 		o.Security = make([]SecurityRequirement, 0)
 	}
