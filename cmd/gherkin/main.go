@@ -147,7 +147,7 @@ func main() {
 	// generate the output swagger doc
 	f, err := os.Create(c.Out)
 	if err != nil {
-		log.Fatalf("issue with writing %q: %w", c.Out, err)
+		log.Fatalf("issue with writing %q: %+v", c.Out, err)
 	}
 	f.Write([]byte(doc.JSON()))
 }

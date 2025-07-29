@@ -1,0 +1,38 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Write tests using TDD with the hydronica.trial package following this pattern.
+The most important thing is to keep things as simple and understandable as possible.
+
+```
+func TestFunction(t *testing.T) {
+    // basic function that takes the table's input and returns the output value and an error. 
+    // All errors cases should be handled as an error response
+    // if no errors return nil in the second value
+    // Keep the input and output values as simple as possible, preferable primitive types or the exact values of the function being tested
+    // do not create inline structs, define the struct in the test function first, if a simple struct is needed
+	fn := func(i string) (RawJSON, error) {
+		var v RawJSON
+		err := json.Unmarshal([]byte(i), &v)
+		return v, err
+	}
+    // Tables (test cases) should be clear and as simple as possible to provide logical coverage. 
+	cases := trial.Cases[string, RawJSON]{
+    "test_case": {
+      Input:{},
+      Expected:{},
+    }
+	}
+
+	trial.New(fn, cases).SubTest(t)
+}
+```
+
+When dealing time using the following helper functions 
+- TimeHour(s string) - uses format "2006-01-02T15"
+- TimeDay(s string) - uses format "2006-01-02"
+- Time(layout string, value)
+- Times(layout string, values ...string)
+- TimeP(layout string, s string) returns a *time.Time
