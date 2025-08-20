@@ -333,7 +333,102 @@ func TestMarshalRoute(t *testing.T) {
 		},
 	}
 	trial.New(fn, cases).SubTest(t)
+}
 
+func TestGetContentType(t *testing.T) {
+	fn := func(i any) (MIMEType, error) {
+		return getContentType(i), nil
+	}
+	cases := trial.Cases[any, MIMEType]{
+		"jsonString": {
+			Input:    JSONString(`{"key":"value"}`),
+			Expected: Json,
+		},
+		"csv": {
+			Input:    "data1,data2,data3",
+			Expected: Text,
+		},
+		"xml": {
+			Input:    "<root><key>value</key></root>",
+			Expected: Xml,
+		},
+		"xmlWithDeclaration": {
+			Input:    `<?xml version="1.0" encoding="UTF-8"?><root><key>value</key></root>`,
+			Expected: Xml,
+		},
+		"html": {
+			Input:    "<html><body>Hello World</body></html>",
+			Expected: Html,
+		},
+		"htmlWithHead": {
+			Input:    "<head><title>Test</title></head><body>Content</body>",
+			Expected: Html,
+		},
+		"htmlWithDiv": {
+			Input:    "<div>Hello World</div>",
+			Expected: Html,
+		},
+		"htmlWithParagraph": {
+			Input:    "<p>This is a paragraph</p>",
+			Expected: Html,
+		},
+		"htmlWithHeading": {
+			Input:    "<h1>Main Heading</h1>",
+			Expected: Html,
+		},
+		"htmlWithForm": {
+			Input:    "<form><input type='text'><button>Submit</button></form>",
+			Expected: Html,
+		},
+		"javascript": {
+			Input:    "function hello() { console.log('Hello World'); }",
+			Expected: Jscript,
+		},
+		"javascriptWithVar": {
+			Input:    "var name = 'John'; let age = 30; const city = 'NYC';",
+			Expected: Jscript,
+		},
+		"javascriptWithArrow": {
+			Input:    "const greet = () => 'Hello';",
+			Expected: Jscript,
+		},
+		"javascriptWithConsole": {
+			Input:    "console.log('Debug info');",
+			Expected: Jscript,
+		},
+		"javascriptWithDocument": {
+			Input:    "document.getElementById('myElement');",
+			Expected: Jscript,
+		},
+		"javascriptWithWindow": {
+			Input:    "window.location.href = '/new-page';",
+			Expected: Jscript,
+		},
+		"plainText": {
+			Input:    "This is just plain text without any special formatting",
+			Expected: Text,
+		},
+		"emptyString": {
+			Input:    "",
+			Expected: Text,
+		},
+		"whitespaceString": {
+			Input:    "   \n\t  ",
+			Expected: Text,
+		},
+		"struct": {
+			Input:    struct{ Name string }{Name: "example"},
+			Expected: Json,
+		},
+		"bytes": {Input: []byte(`902kn219jsk`),
+			Expected: General,
+		},
+		"map": {
+			Input:    map[string]int{"name": 1},
+			Expected: Json,
+		},
+	}
+	trial.New(fn, cases).SubTest(t)
 }
 
 func TestRouteAddSecurityRequirement(t *testing.T) {

@@ -75,18 +75,6 @@ const (
 	Password Format = "password"
 ) */
 
-// common media types
-const (
-	Json    MIMEType = "application/json"
-	Xml     MIMEType = "application/xml"
-	Text    MIMEType = "text/plain"
-	General MIMEType = "application/octet-stream"
-	Html    MIMEType = "text/html"
-	XForm   MIMEType = "application/x-www-form-urlencoded"
-	Jscript MIMEType = "application/javascript"
-	Form    MIMEType = "multipart/form-data"
-)
-
 func (o *OpenAPI) AddTags(t ...Tag) {
 	o.Tags = append(o.Tags, t...)
 }
