@@ -201,9 +201,10 @@ func (r Response) WithNamedExample(name string, i any) Response {
 	if r.Content == nil {
 		r.Content = make(Content)
 	}
-	m := r.Content[Json]
+	c := getContentType(i)
+	m := r.Content[c]
 	m.AddExample(name, i)
-	r.Content[Json] = m
+	r.Content[c] = m
 	return r
 }
 
@@ -261,6 +262,53 @@ func (r RequestBody) WithNamedJsonString(name string, s string) RequestBody {
 	return r.WithExample(m)
 }
 
+// getContentType attempts to determine the MIME type based on the data provided.
+func getContentType(i any) MIMEType {
+	switch v := i.(type) {
+	case string:
+		// Try to detect content type from string content
+		s := strings.TrimSpace(v)
+		if len(s) == 0 {
+			return Text
+		}
+
+		// Check for XML/HTML content first (both start with <)
+		if strings.HasPrefix(s, "<") {
+			// Check for XML declaration
+			if strings.HasPrefix(s, "<?xml") {
+				return Xml
+			}
+
+			// Check for HTML content by looking for common HTML tags
+			htmlTags := []string{"<html", "<head", "<body", "<div", "<span", "<p>", "<h1", "<h2", "<h3", "<h4", "<h5", "<h6", "<ul>", "<ol>", "<li>", "<table", "<form", "<input", "<button", "<a ", "<img", "<script", "<style", "<link"}
+			for _, tag := range htmlTags {
+				if strings.Contains(s, tag) {
+					return Html
+				}
+			}
+
+			// If it starts with < but doesn't match HTML patterns, assume XML
+			return Xml
+		}
+
+		// Check for JavaScript content
+		jsPatterns := []string{"function", "var ", "let ", "const ", "=>", "console.log", "document.", "window."}
+		for _, pattern := range jsPatterns {
+			if strings.Contains(s, pattern) {
+				return Jscript
+			}
+		}
+
+		// Default to plain text for other strings
+		return Text
+	case []byte:
+		return General
+	case map[string]any, []any, JSONString:
+	}
+	// default to JSON for any other type
+	return Json
+}
+
 // Deprecated: use WithExample(JSONString(s)) instead
 func (r RequestBody) WithJSONString(s string) RequestBody {
 	return r.WithNamedJsonString("", s)
@@ -274,9 +322,10 @@ func (r RequestBody) WithNamedExample(name string, i any) RequestBody {
 	if r.Content == nil {
 		r.Content = make(Content)
 	}
-	m := r.Content[Json]
+	c := getContentType(i)
+	m := r.Content[c]
 	m.AddExample(name, i)
-	r.Content[Json] = m
+	r.Content[c] = m
 	return r
 }
 
